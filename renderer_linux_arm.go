@@ -43,12 +43,12 @@ func Renderer(numLEDs int, blender *Blender) {
 			for x := 0; x < ledWidth; x++ {
 				ledPos := 0
 				i := y*ledWidth + x
-				dataPos := (y*ledWidth + x) * 3
+				dataPos := ((ledHeight -1 - y)*ledWidth + x) * 3
 				if y%2==0 {
 					ledPos = i
 				} else {
 					ledPos = i
-					dataPos = (y*ledWidth + (ledWidth-1) - x) * 3
+					dataPos = ((ledHeight - 1 - y)*ledWidth + (ledWidth-1) - x) * 3
 				}
 				brightness := blender.brightness
 				
