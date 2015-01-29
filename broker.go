@@ -4,7 +4,8 @@ package main
 type Message struct {
 	ID string
 	Type string
-	Body []byte
+	Body []byte `json:"-"` // don't send body in json encodings
+	Dest chan *Message `json:"-"` // don't send in json
 }
 
 // A Broker broadcasts messages to multiple clients.
@@ -26,7 +27,11 @@ func (b *Broker) Start() {
 				delete(b.clients, s)
 			case message := <-b.messages:
 				for s := range b.clients {
-					s <- message
+					if message.Dest == nil {
+						s <- message
+					} else if message.Dest == s {
+						s <- message
+					}
 				}
 			}
 		}

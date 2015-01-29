@@ -14,6 +14,7 @@ const (
 )
 
 type FrameSource struct {
+	ID 			int
 	current		[]byte
 	source		chan []byte
 	clientIP	net.Addr
@@ -21,6 +22,8 @@ type FrameSource struct {
 	update 		chan bool
 	commands	chan BlenderCommand
 }
+
+var nextSourceId = 1
 
 func (src *FrameSource) AddFrame(frame []byte) {
 	select {
@@ -75,6 +78,7 @@ func (src *FrameSource) ParseCommand(cmd Command, data []byte) {
 
 func NewFrameSource(numLEDs int, bufferLen int, clientIP net.Addr) *FrameSource {
 	source := &FrameSource{
+		ID: nextSourceId,
 		current: make([]byte, numLEDs*3),
 		source: make(chan []byte,bufferLen),
 		clientIP: clientIP,
@@ -82,5 +86,6 @@ func NewFrameSource(numLEDs int, bufferLen int, clientIP net.Addr) *FrameSource 
 		update: nil,
 		commands: nil,
 	}
+	nextSourceId++
 	return source
 }

@@ -7,7 +7,17 @@
 		width: 640px;
 		height: 380px;
 	}
+	#source {
+		width: 320px;
+		height: 190px;
+	}
 	.renderer-view {
+	}
+	#sources .source {
+		width: 320px;
+		height: 190px;
+		float: left;
+		margin: 10px;
 	}
 </style>
 {{ end }}
@@ -19,6 +29,9 @@
 
 {{ define "content" }}
 	<section id="render">
+		<!-- render the canvas here and update from websocket -->
+	</section>
+	<section id="sources">
 		<!-- render the canvas here and update from websocket -->
 	</section>
 {{ end }}

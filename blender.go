@@ -40,6 +40,7 @@ import (
 	"math/rand"
 	"time"
 	"fmt"
+	"strconv"
 )
 
 type BlenderCommand struct {
@@ -49,7 +50,8 @@ type BlenderCommand struct {
 
 // A Blender manages FrameSources and creates a ready to send byte array of resulting rendering
 type Blender struct {
-	sources map[*FrameSource] bool 	// a map of all available sources
+	broker *Broker
+	Sources map[int] *FrameSource 	// a map of all available sources
 	active []*FrameSource		// the sources this blender has selected to be active in the order they should be blended together
 
 	joining chan *FrameSource 		// a channel for adding sources
@@ -82,11 +84,12 @@ func (b *Blender) Start() {
 				// tell the source about our update channel (non blocking only)
 				s.update = b.update
 				// store the source
-				b.sources[s] = true
+				b.Sources[s.ID] = s
 
-				fmt.Println("Adding source")
+				fmt.Println("Adding source ", s.ID)
+				b.broker.messages <- &Message{ID: strconv.Itoa(s.ID), Type: "add-source"}
 				// if length is now 1, do a selectsource
-				//if len(b.sources) == 1 {
+				//if len(b.Sources) == 1 {
 					b.SelectSources()
 				//}
 			case s := <-b.leaving:
@@ -96,7 +99,8 @@ func (b *Blender) Start() {
 
 				fmt.Println("Removing source")
 				// delete the source from our map
-				delete(b.sources, s)
+				delete(b.Sources, s.ID)
+				b.broker.messages <- &Message{ID: strconv.Itoa(s.ID), Type: "del-source"}
 
 				// find the source in the active list and delete it
 				for p, v := range b.active {
@@ -147,28 +151,33 @@ func (b *Blender) Redraw() {
 		
 	}
 }
-
+func (b *Blender) RefreshSources(dst chan *Message) {
+	for _, src := range b.Sources {
+		b.broker.messages <- &Message{ID: strconv.Itoa(src.ID), Type: "add-source", Dest: dst}
+	}
+}
 func (b *Blender) SelectSources() {
 	// select a new source
-	switch len(b.sources) {
+	switch len(b.Sources) {
 	case 0:
 		// no sources available, show placeholder graphics from a dummy source?
 		b.active = nil
 	case 1:
 		// only one source available, use it
 		b.active = nil
-		for k,_ := range b.sources {
-			b.active = append(b.active, k)
+		for _,src := range b.Sources {
+			b.active = append(b.active, src)
+			fmt.Println("Source ", src.ID, " active")
+			break
 		}
-		fmt.Println("Source 0 active")
 	default:
 		// many sources available.....how do we select one?
-		for k, _ := range b.sources {
-			b.active = append(b.active, k)
+		for _, src := range b.Sources {
+			b.active = append(b.active, src)
 		}
-		/*i := int(float32(len(b.sources)) * rand.Float32())
+		/*i := int(float32(len(b.Sources)) * rand.Float32())
 		fmt.Println("Source ", i, " active")
-		for k, _ := range b.sources {
+		for k, _ := range b.Sources {
 			if i == 0 {
 				// found random key, make it active
 				b.active = append(b.active, k)
@@ -179,9 +188,10 @@ func (b *Blender) SelectSources() {
 	}
 }
 
-func NewBlender(numLEDs int) *Blender {
-	return &Blender{
-		sources: make(map[*FrameSource] bool),
+func NewBlender(numLEDs int, broker *Broker) *Blender {
+	v := &Blender{
+		broker: broker,
+		Sources: make(map[int] *FrameSource),
 		active: make([]*FrameSource, 0, 50),
 		joining: make(chan *FrameSource),
 		leaving: make(chan *FrameSource),
@@ -189,4 +199,5 @@ func NewBlender(numLEDs int) *Blender {
 		update: make(chan bool, 1), // non-buffered channel
 		commands: make(chan BlenderCommand, 60), // buffered channel
 	}
+	return v;
 }

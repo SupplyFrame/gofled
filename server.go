@@ -12,6 +12,8 @@ import (
 	"encoding/binary"
 	"os"
 	"html/template"
+	"encoding/json"
+	"strconv"
 )
 
 var (
@@ -241,18 +243,35 @@ func clientHandler(w http.ResponseWriter, r *http.Request) {
 	closer := c.CloseNotify()
 
 	fmt.Println("Client handler connected")
-	// at a framerate of 30 fps....
-	// send out the data in the current source to this client
-	
+
+	go func() {
+		time.Sleep(50*time.Millisecond) // wait a little to make sure this client is ready to receive
+		blender.RefreshSources(in) // then send a list of all the current sources so the client is up to date
+	}()
+
 	for {
 		select {
 			case m := <- in:
-				//fmt.Println("Sending active source data")
-				err := ws.WriteMessage(websocket.BinaryMessage, m.Body)
+				
+				// send a message indicating what source the next message goes to
+				b, err := json.Marshal(m)
+				if err != nil {
+					fmt.Println("Failed to encode json : ", err.Error())
+					return
+				}
+				err = ws.WriteMessage(websocket.TextMessage, b)
 				if err != nil {
 					fmt.Println("Error sending message : ", err.Error())
 					return
 				}	
+
+				if m.Type == "data" {
+					err = ws.WriteMessage(websocket.BinaryMessage, m.Body)
+					if err != nil {
+						fmt.Println("Error sending message : ", err.Error())
+						return
+					}	
+				}
 			case <-closer:
 				fmt.Println("Closing connection\n")
 				return
@@ -274,6 +293,15 @@ func sender() {
 		time.Sleep(33*time.Millisecond) // roughly 30fps
 	}
 }
+func sourceSender() {
+	for {
+		// loop over all sources and send out the raw data from each
+		for _,src := range blender.Sources {
+			b.messages <- &Message{ID: strconv.Itoa(src.ID), Type: "data", Body: src.current}
+		}
+		time.Sleep(100*time.Millisecond) // 10fps
+	}
+}
 func MaxParallelism() int {
     maxProcs := runtime.GOMAXPROCS(0)
     numCPU := runtime.NumCPU()
@@ -290,7 +318,7 @@ func main() {
 	b = NewBroker()
 	b.Start()
 
-	blender = NewBlender(numLEDs)
+	blender = NewBlender(numLEDs,b)
 	blender.Start()
 
 	// setup a router and some handlers
@@ -305,6 +333,7 @@ func main() {
 
 	go StartTCP()
 	go sender()
+	go sourceSender()
 
 	fmt.Println("Starting webserver")
 	n := negroni.Classic()
