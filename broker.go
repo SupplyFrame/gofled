@@ -1,6 +1,5 @@
 package main
 
-import "runtime"
 // A Message contains the process ID, message type and process output.
 type Message struct {
 	ID string
@@ -29,8 +28,6 @@ func (b *Broker) Start() {
 				for s := range b.clients {
 					s <- message
 				}
-			default:
-				runtime.Gosched()
 			}
 		}
 	}()

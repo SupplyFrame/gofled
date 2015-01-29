@@ -260,6 +260,7 @@ func clientHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func indexHandler(w http.ResponseWriter, req *http.Request) {
+	fmt.Println("Index")
 	// render out a list of all sources with UI capable of rendering
 	if err := index.Execute(w, nil); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -305,7 +306,11 @@ func main() {
 	go StartTCP()
 	go sender()
 
+	fmt.Println("Starting webserver")
 	n := negroni.Classic()
 	n.UseHandler(r)
 	n.Run(addr)
+	
+//	time.Sleep(10*time.Second)
+	fmt.Println("Exiting")
 }
