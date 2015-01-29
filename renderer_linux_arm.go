@@ -13,9 +13,10 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-//	"runtime"
+	"runtime"
 	"unsafe"
 	"reflect"
+	"encoding/binary"
 )
 
 func Renderer(numLEDs int, blender *Blender) {
@@ -52,6 +53,15 @@ func Renderer(numLEDs int, blender *Blender) {
 	start := time.Now()
 	frameCount := 0
 
+	// set number of leds....
+	ledLenBuff := make([]byte, 4)
+	binary.LittleEndian.PutUint32(ledLenBuff, uint32(numLEDs))
+	// copy the bytes into the data array at position 7
+	data[7] = C.uchar(ledLenBuff[0])
+	data[8] = C.uchar(ledLenBuff[1])
+	data[9] = C.uchar(ledLenBuff[2])
+	data[10] = C.uchar(ledLenBuff[3])
+
 	for {
 		blender.Redraw()
 
@@ -72,7 +82,7 @@ func Renderer(numLEDs int, blender *Blender) {
 			frameCount = 0
 		}
 		// yield to other processes
-		//runtime.Gosched()
-		time.Sleep(10*time.Millisecond)
+		runtime.Gosched()
+		time.Sleep(1*time.Microsecond)
 	}
 }

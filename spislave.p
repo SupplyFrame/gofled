@@ -83,8 +83,8 @@ LOOPING:
     SBCO r8, CONST_PRUDRAM, 6, 1
 
     // Data is ready, read data length word
-    //LBCO r5, CONST_PRUDRAM, 7, 4
-    MOV r5, 5
+    LBCO r5, CONST_PRUDRAM, 7, 4
+    //MOV r5, 5
     // Now we read a byte from PRUDRAM and write it to spi
 
 START_FRAME:
@@ -103,8 +103,8 @@ DATA_FRAME:
     // since its the length of an SPI word
     // first we need to read 3 bytes from the buffer at current offset
     LBCO r2, CONST_PRUDRAM, r9, 3
-    LSR r2, r2, 8
-    MOV r3, 0xE4000000
+//    LSR r2, r2, 8
+    MOV r3, 0xFF000000
     OR r2, r2, r3
     // r2 is now ready to send
     MOV r1, 0x481A014C
@@ -119,8 +119,8 @@ DATA_FRAME:
 END_FRAME:
     // now send end frame bytes, 
     MOV r6, 0
-    //LBCO r5, CONST_PRUDRAM, 7, 4
-    MOV r5, 5
+    LBCO r5, CONST_PRUDRAM, 7, 4
+    //MOV r5, 5
  END_FRAME_LOOP:
     MOV r1, 0x481A014C
     MOV r2, 0xFFFFFFFF
