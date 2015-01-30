@@ -1,37 +1,14 @@
 {{ define "title" }}Home{{ end }}
 
 {{ define "head" }}
-<style>
-	body { margin: 0; padding: 0; background-color: white; }
-	#render {
-		width: 640px;
-		height: 380px;
-	}
-	#source {
-		width: 320px;
-		height: 190px;
-	}
-	.renderer-view {
-	}
-	#sources .source {
-		width: 320px;
-		height: 190px;
-		float: left;
-		margin: 10px;
-	}
-</style>
 {{ end }}
 
 {{ define "afterbody" }}
-<script src="/public/pixi.js"></script>
-<script src="/public/renderer.js"></script>
+	<script src="/public/index.js"></script>
 {{ end }}
 
 {{ define "content" }}
 	<section id="render">
-		<!-- render the canvas here and update from websocket -->
-	</section>
-	<section id="sources">
 		<!-- render the canvas here and update from websocket -->
 	</section>
 {{ end }}

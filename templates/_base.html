@@ -2,10 +2,22 @@
 <html lang="en">
 	<head>
 		<title>{{ template "title" . }} | GoFLED</title>
+		<script src="/public/pixi.js"></script>
+		<script src="/public/renderer.js"></script>
+		<link rel="stylesheet" type="text/css" href="/public/styles.css"/>
 		{{ template "head" . }}
 	</head>
 	<body>
-		{{ template "content" . }}
+		<div class="body-wrapper">
+			<header>
+				<h1>GoFLED</h1>
+				<ul class="nav">
+					<li><a href="/">Home</a></li>
+					<li><a href="/sources">Sources</a></li>
+				</ul>
+			</header>
+			{{ template "content" . }}
+		</div>
 		{{ template "afterbody" . }}
 	</body>
 </html>

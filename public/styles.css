@@ -1,0 +1,66 @@
+@font-face {
+	font-family: 'ledsitex_stregular';
+	src: url('fonts/ledsitex_st-webfont.eot');
+	src: url('fonts/ledsitex_st-webfont.eot?#iefix') format('embedded-opentype'),
+		url('fonts/ledsitex_st-webfont.woff2') format('woff2'),
+		url('fonts/ledsitex_st-webfont.woff') format('woff'),
+		url('fonts/ledsitex_st-webfont.ttf') format('truetype'),
+		url('fonts/ledsitex_st-webfont.svg#ledsitex_stregular') format('svg');
+	font-weight: normal;
+	font-style: normal;
+}
+body {
+	margin: 0;
+	padding: 0;
+	background-color: #333;
+	color: white;
+	font-family: Arial, Helvetica, sans-serif;
+}
+
+.body-wrapper {
+	width: 800px;
+	margin: 0 auto;
+}
+header {
+	border-bottom: 1px solid #999;
+	margin-bottom: 10px;
+	position: relative;
+}
+header h1 {
+	font-family: 'ledsitex_stregular';
+	font-size: 80px;
+	line-height: 80px;
+	font-weight: normal;
+	margin: 0;
+}
+header .nav {
+	position: absolute;
+	right: 0px;
+	bottom: 0px;
+	margin: 0;
+	padding: 0;
+	margin-bottom: 6px;
+}
+header .nav li {
+	list-style-type: none;
+	display: inline-block;
+	margin-left: 16px;
+}
+header .nav li a {
+	text-decoration: none;
+	color: white;
+}
+header .nav li a:hover {
+	text-decoration: underline;
+}
+#render {
+	width: 800px;
+	height: 475px;
+}
+
+#sources .source {
+	width: 250px;
+	height: 149px;
+	float: left;
+	margin: 8px;
+}

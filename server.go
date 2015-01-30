@@ -36,10 +36,6 @@ const (
 	TCP_READ_DATA	= 1 // reading packet data
 )
 
-var index = template.Must(template.ParseFiles(
-	"templates/_base.html",
-	"templates/index.html",
-))
 
 func tcpHandler(conn net.Conn) {
 	state := TCP_READ_LEN
@@ -244,6 +240,16 @@ func clientHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Println("Client handler connected")
 
+	// setup reader to clear out ping messages
+	go func(c *websocket.Conn) {
+		for {
+			if _, _, err := c.NextReader(); err != nil {
+				c.Close()
+				break
+			}
+		}
+	}(ws)
+
 	go func() {
 		time.Sleep(50*time.Millisecond) // wait a little to make sure this client is ready to receive
 		blender.RefreshSources(in) // then send a list of all the current sources so the client is up to date
@@ -278,13 +284,6 @@ func clientHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
-func indexHandler(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("Index")
-	// render out a list of all sources with UI capable of rendering
-	if err := index.Execute(w, nil); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
 
 func sender() {
 	for {
@@ -310,6 +309,26 @@ func MaxParallelism() int {
     }
     return numCPU
 }
+func indexHandler(w http.ResponseWriter, req *http.Request) {
+	var indexTemplate = template.Must(template.ParseFiles(
+		"templates/_base.html",
+		"templates/index.html",
+	))
+	// render out a list of all sources with UI capable of rendering
+	if err := indexTemplate.Execute(w, nil); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+func sourcesHandler(w http.ResponseWriter, req *http.Request) {
+	var sourcesTemplate = template.Must(template.ParseFiles(
+		"templates/_base.html",
+		"templates/sources.html",
+	))
+	// render out a list of all sources with UI capable of rendering
+	if err := sourcesTemplate.Execute(w, nil); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
 func main() {
 	numCPU := MaxParallelism()
 	fmt.Println("MAX CPUS : ", numCPU)
@@ -323,11 +342,11 @@ func main() {
 
 	// setup a router and some handlers
 	r := mux.NewRouter()
+	r.HandleFunc("/sources", sourcesHandler)
 	r.HandleFunc("/source", sourceHandler)
 	r.HandleFunc("/client", clientHandler)
 	r.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("./public/"))))
 	r.HandleFunc("/", indexHandler)
-	/*r.HandleFunc("/sources", sourcesHandler)*/
 
 	go Renderer(numLEDs, blender)
 
