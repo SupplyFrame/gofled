@@ -288,14 +288,14 @@ func clientHandler(w http.ResponseWriter, r *http.Request) {
 func sender() {
 	for {
 		// queue up a message via the broker
-		b.messages <- &Message{ID: "active", Type: "data", Body: blender.Data}
+		b.messages <- &Message{ID: "active", Type: "data", Body: blender.data}
 		time.Sleep(33*time.Millisecond) // roughly 30fps
 	}
 }
 func sourceSender() {
 	for {
 		// loop over all sources and send out the raw data from each
-		for _,src := range blender.Sources {
+		for _,src := range blender.sources {
 			b.messages <- &Message{ID: strconv.Itoa(src.ID), Type: "data", Body: src.current}
 		}
 		time.Sleep(100*time.Millisecond) // 10fps
