@@ -19,7 +19,7 @@ import (
 var (
 	b *Broker
 	blender *Blender
-	numLEDs = 54*32
+	numLEDs = 52*34
 	addr = ":9000"
 	tcpAddr = ":9001"
 	upgrader = websocket.Upgrader{

@@ -11,8 +11,8 @@
 		init: function() {
 			this.viewWidth = this.container.clientWidth;
 			this.viewHeight = this.container.clientHeight;
-			this.pixelWidth = 54;
-			this.pixelHeight = 32;
+			this.pixelWidth = 52;
+			this.pixelHeight = 34;
 
 			var renderer = new PIXI.autoDetectRenderer(this.viewWidth, this.viewHeight);
 			renderer.view.className = "renderer-view";
