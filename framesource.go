@@ -38,6 +38,9 @@ type FrameSource struct {
 	fps			int
 	blendMode 	string
 	author		string
+
+	// blending parameters
+	amount		float64 // amount of this channel that we blend in, 0.0 to 1.0
 }
 
 var nextSourceId = 1

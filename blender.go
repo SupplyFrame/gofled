@@ -28,6 +28,14 @@ type Blender struct {
 	commands chan BlenderCommand 	// a command channel, used to select sources, overlay sources, trigger redraws etc
 }
 
+func linearTween(t time.Duration, b float64, c float64, d time.Duration) float64 {
+	if t > d{
+		t = d
+	}
+	delta := c - b
+	val := b + (delta*(t.Seconds()/d.Seconds()))
+	return val
+}
 
 // Start managing client connections and message broadcasts.
 func (b *Blender) Start() {
@@ -48,8 +56,27 @@ func (b *Blender) Start() {
 					duration := time.Duration(cmd.Data["duration"].(float64))
 					go func() {
 						fmt.Println("Activating overlay for src ", cmd.Src.ID)
+						cmd.Src.amount = 0.0
 						b.active = append(b.active, cmd.Src)
+						// time now at start of tween
+						timeStart := time.Now()
+						timeTween := time.Duration(500*time.Millisecond)
+						// raise amount over time
+						for cmd.Src.amount = 0; cmd.Src.amount < 1.0;{
+							cmd.Src.amount = linearTween(time.Since(timeStart), 0.0, 1.0, timeTween)
+							time.Sleep(10*time.Millisecond)
+						}
 						time.Sleep(duration)
+
+						// time now at start of tween
+						timeStart = time.Now()
+						timeTween = time.Duration(500*time.Millisecond)
+						// raise amount over time
+						for cmd.Src.amount = 1.0; cmd.Src.amount > 0.0;{
+							cmd.Src.amount = linearTween(time.Since(timeStart), 1.0, 0.0, timeTween)
+							time.Sleep(10*time.Millisecond)
+						}
+
 						fmt.Println("Deactivating overlay for src ", cmd.Src.ID)
 						for p, v := range b.active {
 							if v == cmd.Src {
@@ -122,14 +149,17 @@ func (b *Blender) Redraw() {
 					continue
 				}
 
+				srcVal := b.active[s].current[i]
+				srcVal = byte(float64(srcVal) * b.active[s].amount)
+
 				// TODO: this is a simple additive blend right now
 				// but we need to use the blend mode specified by each source
 				// so break this out into a switch on src.blendMode
-				if v + b.active[s].current[i] > 255 {
+				if v + srcVal > 255 {
 					v = 255
 					break
 				}
-				v += b.active[s].current[i]
+				v += srcVal
 			}
 			b.data[i] = v
 		}
