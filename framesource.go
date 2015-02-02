@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"bytes"
+	"encoding/json"
 )
 
 type Command uint32
@@ -21,7 +22,7 @@ type FrameSource struct {
 	// ID of the source, incremental just for internal use
 	ID 			int
 	// the current slice of frame data
-	current		[]byte
+	current		[]byte `json:"-"`
 
 	// the src ip that is sending us this data
 	clientIP	net.Addr
@@ -30,7 +31,7 @@ type FrameSource struct {
 	active 		bool
 
 	// channels for input commands
-	commands	chan BlenderCommand
+	commands	chan BlenderCommand `json:"-"`
 
 	// meta parameters
 	name 		string
@@ -44,6 +45,7 @@ var nextSourceId = 1
 func (src *FrameSource) AddFrame(frame []byte) {
 	// store the new frame
 	src.current = frame
+	numLedsInFrame := len(frame)/3
 }
 
 func (src *FrameSource) StartTransition() {
@@ -57,7 +59,7 @@ func (src *FrameSource) SetMeta(meta map[string] interface{}) {
 		src.name = val.(string)
 	}
 	if val, ok := meta["fps"]; ok {
-		src.fps = val.(int)
+		src.fps = int(val.(float64))
 	}
 	if val, ok := meta["blendMode"]; ok {
 		src.blendMode = val.(string)
@@ -102,10 +104,12 @@ func (src *FrameSource) ParseCommand(cmd Command, data []byte) {
 			}
 		case CmdMeta:
 			var meta map[string]interface{}
+			fmt.Println("Unmarshalling : ", data)
 			if err := json.Unmarshal(data, &meta); err != nil {
 				fmt.Println("Error unmarshalling meta data : ", err.Error())
 				return
 			}
+			fmt.Println("Received meta : ", meta)
 			src.SetMeta(meta)
 		case CmdClosing:
 			// this source is about to end soon, use this to start a transition and tell the renderer to move to another source

@@ -59,9 +59,9 @@
 				pixelYOffset = (renderHeight - (pixelSpacing*(this.pixelHeight-1))) / 2;
 
 			// create all the pixels
-			for (var x=0; x < this.pixelWidth; x++) {
-				for (var y=0; y < this.pixelHeight; y++) {
-					pixel = this.pixels[x][y];
+			for (var y=0; y < this.pixelHeight; y++) {
+				for (var x=0; x < this.pixelWidth; x++) {
+					pixel = this.pixels[y][x];
 					pixel.position.x = pixelXOffset + (pixelSpacing * x);
 					pixel.position.y = pixelYOffset + (pixelSpacing * y);
 				}
@@ -75,11 +75,11 @@
 			var pixels = [];
 
 			// create all the pixels
-			for (var x=0; x < this.pixelWidth; x++) {
-				pixels[x] = [];
-				for (var y=0; y < this.pixelHeight; y++) {
+			for (var y=0; y < this.pixelHeight; y++) {
+				pixels[y] = [];
+				for (var x=0; x < this.pixelWidth; x++) {
 					var pixel = new PIXI.Sprite.fromImage("/public/point.png");
-					pixels[x][y] = pixel;
+					pixels[y][x] = pixel;
 					pixel.blendMode = PIXI.blendModes.ADD;
 					pixel.anchor.x = 0.5;
 					pixel.anchor.y = 0.5;
@@ -93,13 +93,13 @@
 		updatePixels: function(data) {
 			var pixels = this.pixels;
 			// update the pixels with the new tints
-			for (var x=0; x < pixels.length; x++) {
-				for (var y=0; y < pixels[x].length; y++) {
-					var pixel = pixels[x][y];
-					var index = (x + (y*pixels[x].length))*3;
-					var r = data[index+1],
-						g = data[index+2],
-						b = data[index+3];
+			for (var y=0; y < this.pixelHeight; y++) {
+				for (var x=0; x < this.pixelWidth; x++) {
+					var pixel = pixels[y][x];
+					var index = (x + (y*this.pixelWidth))*3;
+					var r = data[index],
+						g = data[index+1],
+						b = data[index+2];
 
 					pixel.tint = r << 16 | g << 8 | b;
 				}

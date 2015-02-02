@@ -6,6 +6,7 @@ type Message struct {
 	Type string
 	Body []byte `json:"-"` // don't send body in json encodings
 	Dest chan *Message `json:"-"` // don't send in json
+	Data map[string]interface{}
 }
 
 // A Broker broadcasts messages to multiple clients.

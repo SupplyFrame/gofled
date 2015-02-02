@@ -28,6 +28,7 @@ c.onopen = function() {
 				document.getElementById("sources").appendChild(div);
 				var view = new Viewer("source-" + msg.ID);
 				window.views[msg.ID] = view;
+				console.log("Source added : " + JSON.stringify(msg));
 			} else if (msg.Type == "del-source") {
 				// remove the viewer and div for this source
 				var el = document.getElementById("source-" + msg.ID);

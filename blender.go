@@ -5,6 +5,7 @@ import (
 	"time"
 	"fmt"
 	"strconv"
+	"github.com/fatih/structs"
 )
 
 type BlenderCommand struct {
@@ -33,6 +34,8 @@ func (b *Blender) Start() {
 	// initialize random seed
 	rand.Seed(time.Now().UnixNano())
 
+	go b.SourceSelector()
+
 	go func() {
 		for {
 			select {
@@ -40,7 +43,7 @@ func (b *Blender) Start() {
 				// test for a command we know about
 				switch cmd.Type {
 				case "overlay":
-					fmt.Println("Source " + cmd.Src.ID + " requested overlay")
+					fmt.Println("Source ", cmd.Src.ID, " requested overlay")
 					// read out duration parameter from data object
 				default:
 					fmt.Println("Unknown blender command : ", cmd.Type)
@@ -52,11 +55,11 @@ func (b *Blender) Start() {
 				b.sources[s.ID] = s
 
 				fmt.Println("Adding source ", s.ID)
-				b.broker.messages <- &Message{ID: strconv.Itoa(s.ID), Type: "add-source"}
+				b.broker.messages <- &Message{ID: strconv.Itoa(s.ID), Type: "add-source", Data: structs.Map(s) }
 				// if length is now 1, do a selectsource
-				//if len(b.sources) == 1 {
-					b.SelectSources()
-				//}
+				if len(b.sources) == 1 {
+					b.RandomSource()
+				}
 			case s := <-b.leaving:
 				// release the command channel
 				s.commands = nil
@@ -70,8 +73,10 @@ func (b *Blender) Start() {
 				for p, v := range b.active {
 					if v == s {
 						b.active = append(b.active[:p], b.active[p+1:]...)
-						// trigger a source selection
-						b.SelectSources()
+						// trigger a source selection if we only have one source
+						if len(b.sources) == 1 {
+							b.RandomSource()
+						}
 						break
 					}
 				}
@@ -120,38 +125,48 @@ func (b *Blender) Redraw() {
 }
 func (b *Blender) RefreshSources(dst chan *Message) {
 	for _, src := range b.sources {
-		b.broker.messages <- &Message{ID: strconv.Itoa(src.ID), Type: "add-source", Dest: dst}
+		b.broker.messages <- &Message{ID: strconv.Itoa(src.ID), Type: "add-source", Dest: dst, Data: structs.Map(src)}
 	}
 }
-func (b *Blender) SelectSources() {
-	// select a new source
-	switch len(b.sources) {
-	case 0:
-		// no sources available, show placeholder graphics from a dummy source?
-		b.active = nil
-	case 1:
-		// only one source available, use it
-		b.active = nil
-		for _,src := range b.sources {
-			b.active = append(b.active, src)
-			fmt.Println("Source ", src.ID, " active")
-			break
+
+func (b *Blender) RandomSource() {
+	// select a new random source
+
+	// count number of active sources
+	activeCount := 0
+	for _,src := range b.sources {
+		if src.active {
+			activeCount++
 		}
-	default:
-		// many sources available.....how do we select one?
-		for _, src := range b.sources {
-			b.active = append(b.active, src)
+	}
+	if activeCount == 0 {
+		b.active = nil
+		return
+	}
+	// use total count as a probability value so if we have 6 sources, we have a 1/6 chance of picking any specific source
+	target := rand.Intn(activeCount)
+	matched := 0
+	// clear existing active sources
+	b.active = nil
+	for _,src := range b.sources {
+		// skip over inactive sources
+		if !src.active {
+			continue
 		}
-		/*i := int(float32(len(b.sources)) * rand.Float32())
-		fmt.Println("Source ", i, " active")
-		for k, _ := range b.sources {
-			if i == 0 {
-				// found random key, make it active
-				b.active = append(b.active, k)
-			} else {
-				i--
-			}
-		}*/
+		if matched == target {
+			fmt.Println("Active source = ", src.ID)
+			b.active = append(b.active, src)
+			return
+		}
+		matched++
+	}
+}
+
+func (b *Blender) SourceSelector() {
+	// run in a loop forever, select a source and run for 5 minutes before repeating
+	for {
+		b.RandomSource()
+		time.Sleep(30*time.Second)
 	}
 }
 
