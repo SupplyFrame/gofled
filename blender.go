@@ -45,6 +45,19 @@ func (b *Blender) Start() {
 				case "overlay":
 					fmt.Println("Source ", cmd.Src.ID, " requested overlay")
 					// read out duration parameter from data object
+					duration := time.Duration(cmd.Data["duration"].(float64))
+					go func() {
+						fmt.Println("Activating overlay for src ", cmd.Src.ID)
+						b.active = append(b.active, cmd.Src)
+						time.Sleep(duration)
+						fmt.Println("Deactivating overlay for src ", cmd.Src.ID)
+						for p, v := range b.active {
+							if v == cmd.Src {
+								b.active = append(b.active[:p], b.active[p+1:]...)
+								break
+							}
+						}
+					}()
 				default:
 					fmt.Println("Unknown blender command : ", cmd.Type)
 				}

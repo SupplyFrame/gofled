@@ -45,7 +45,6 @@ var nextSourceId = 1
 func (src *FrameSource) AddFrame(frame []byte) {
 	// store the new frame
 	src.current = frame
-	numLedsInFrame := len(frame)/3
 }
 
 func (src *FrameSource) StartTransition() {
@@ -86,6 +85,16 @@ func (src *FrameSource) ParseCommand(cmd Command, data []byte) {
 		case CmdOverlay:
 			// this source needs to be overlayed on top of all other sources immediately
 			// data specifies duration for the overlay to be a priority, after which the source disappears again
+			var overlaySettings map[string]interface{}
+			if err := json.Unmarshal(data, &overlaySettings); err != nil {
+				fmt.Println("Error unmarshalling overlay settings : ", err.Error())
+				return
+			}
+			fmt.Println("Making src ", src.ID, " overlay for ", overlaySettings["duration"].(float64))
+
+			// send command to blender through src.commands to notify it that this is now required for overlay
+			// then setup a go func to wait duration seconds and then send another command to remove it
+			src.commands <- BlenderCommand{ Src: src, Type: "overlay", Data: overlaySettings }
 		case CmdBlendMode:
 			// specifies the blend mode for this source
 			n := bytes.Index(data, []byte{0})
@@ -104,12 +113,10 @@ func (src *FrameSource) ParseCommand(cmd Command, data []byte) {
 			}
 		case CmdMeta:
 			var meta map[string]interface{}
-			fmt.Println("Unmarshalling : ", data)
 			if err := json.Unmarshal(data, &meta); err != nil {
 				fmt.Println("Error unmarshalling meta data : ", err.Error())
 				return
 			}
-			fmt.Println("Received meta : ", meta)
 			src.SetMeta(meta)
 		case CmdClosing:
 			// this source is about to end soon, use this to start a transition and tell the renderer to move to another source
