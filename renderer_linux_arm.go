@@ -66,8 +66,8 @@ func Renderer(numLEDs int, blender *Blender) {
 		blender.Redraw()
 
 		//copy(data[11:], []C.uchar(blender.Data))
-		for i:=0; i < len(blender.Data); i++ {
-			data[11+i] = C.uchar(blender.Data[i])
+		for i:=0; i < len(blender.data); i++ {
+			data[11+i] = C.uchar(blender.data[i])
 		}
 		data[5] = 1; // send!
 
