@@ -61,7 +61,7 @@ START:
     
     // Configure channel 1 of MCSPI1
     MOV  r1, 0x481A0140  
-    MOV  r2, 0x000192FD0
+    MOV  r2, 0x000192FD8
 //    LBCO r4, CONST_PRUDRAM, 0, 4 //frequency
 //    OR   r2, r2, r4
     SBBO r2, r1, 0, 4
