@@ -16,6 +16,8 @@ c.onopen = function() {
 			if (msg.Type == "data") {
 				if (msg.ID == "active") {
 					activeSource = 0;
+				} else {
+					activeSource = msg.ID;
 				}
 			}
 		} else {

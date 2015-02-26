@@ -40,3 +40,16 @@ To setup an Inactive Source, first send the SetActive(False) command, then start
 
 To bring a source to the top and display it temporarily over all others call SetOverlay(duration)
 
+
+
+Blending effects processing
+===========================
+
+Each source can be blended over other sources
+Need a suite of blend functions for different types of blending
+	These should be of the form func(dst byte[], src byte[], amount float64)
+	In an additive blend amount would be applied as a scalar to src before blending allowing us to control how much of the src is applied in the function
+Each frame source has a blend mode and an amount value (defaults to 1.0)
+If we wish to blend in a source over time, we would move amount from 0.0 to 1.0
+
+For overlays, we would blend them in over a short period and then blend them out over a short period.

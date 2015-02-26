@@ -18,7 +18,8 @@ type BlenderCommand struct {
 type Blender struct {
 	broker *Broker
 	sources map[int] *FrameSource 	// a map of all available sources
-	active []*FrameSource		// the sources this blender has selected to be active in the order they should be blended together
+	primaryActive *FrameSource 		// the primary active source, all other sources are blended on top
+	active []*FrameSource			// the sources this blender has selected to be active in the order they should be blended together
 
 	joining chan *FrameSource 		// a channel for adding sources
 	leaving chan *FrameSource 		// a channel for removing sources
@@ -111,21 +112,21 @@ func (b *Blender) Start() {
 
 func (b *Blender) Redraw() {
 	// blend all active sources and write into data array for pushing out
-	if len(b.active) == 0 {
+	if b.primaryActive == nil {
 		return // leave as is
 	}
-	if b.active[0].current == nil {
+	if b.primaryActive.current == nil {
 		return
 	}
 
 	// wipe the data array and then start blending through the active sources
-	copy(b.data, b.active[0].current)
+	copy(b.data, b.primaryActive.current)
 
-	if (len(b.active) > 1) {
+	if (len(b.active) > 0) {
 		// loop over each source and blend the pixels into the b.data array
 		for i := 0; i < len(b.data); i++ {
 			v := b.data[i]
-			for s:=1; s < len(b.active); s++ {
+			for s:=0; s < len(b.active); s++ {
 				if b.active[s].current == nil {
 					continue
 				}
@@ -154,14 +155,13 @@ func (b *Blender) RandomSource() {
 		}
 	}
 	if activeCount == 0 {
+		b.primaryActive = nil
 		b.active = nil
 		return
 	}
 	// use total count as a probability value so if we have 6 sources, we have a 1/6 chance of picking any specific source
 	target := rand.Intn(activeCount)
 	matched := 0
-	// clear existing active sources
-	b.active = nil
 	for _,src := range b.sources {
 		// skip over inactive sources
 		if !src.active {
@@ -169,7 +169,7 @@ func (b *Blender) RandomSource() {
 		}
 		if matched == target {
 			fmt.Println("Active source = ", src.ID)
-			b.active = append(b.active, src)
+			b.primaryActive = src
 			return
 		}
 		matched++
@@ -188,6 +188,7 @@ func NewBlender(numLEDs int, broker *Broker) *Blender {
 	v := &Blender{
 		broker: broker,
 		sources: make(map[int] *FrameSource),
+		primaryActive: nil,
 		active: make([]*FrameSource, 0, 50),
 		joining: make(chan *FrameSource),
 		leaving: make(chan *FrameSource),

@@ -275,7 +275,7 @@ func clientHandler(w http.ResponseWriter, r *http.Request) {
 					err = ws.WriteMessage(websocket.BinaryMessage, m.Body)
 					if err != nil {
 						fmt.Println("Error sending message : ", err.Error())
-						return
+						//return
 					}	
 				}
 			case <-closer:
