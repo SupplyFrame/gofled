@@ -69,3 +69,24 @@ Each frame source has a blend mode and an amount value (defaults to 1.0)
 If we wish to blend in a source over time, we would move amount from 0.0 to 1.0
 
 For overlays, we would blend them in over a short period and then blend them out over a short period.
+
+
+Source Protocol
+===============
+All sources should connect to the beaglebone black over the TCP/IP port which defaults to 9001.
+
+Packets should follow the following format:
+```
+[Packet Length] [Command Bytes] [          Data           ]
+[   4 bytes   ] [   4 bytes   ] [ Packet Length - 4 bytes ]
+```
+
+The command byte can be one of the following:
+
+0 - Frame Data, data is an array of RGB values in RGB bytes, e.g. [R,G,B,R,G,B,R,G,B]. Each color value is a byte between 0 and 255.
+1 - Transition, this prompts the blender to start a transition between the current frame from the active source and whatever subsequent frames follow. This allows sources to use transitiosn implenented in the blender in their own animations. (NOT IMPLEMENTED YET)
+2 - Overlay, the Data array should be a byte encoded JSON string containing a single object with a property 'duration' which specifies the time the overlay should stay active for in nanoseconds. When a source issues the overlay command, it will be blended over the frame data with its blend mode.
+3 - BlendMode, sets the blend mode for this source. Data should be a JSON string containing a single object with a property 'mode', which specifies one of the available blend modes (see above). (NOT IMPLEMENTED YET)
+4 - Active, sets the active flag for this source. Data should be a single byte that is > 0 if the source should be made active.
+5 - Meta, sets the meta data for this source. Data should be a JSON string containing a single object with optional properties for 'name', 'fps', 'blendMode', 'author', and 'active'. This can be used to set all states in a single command. It is recommended a source sends the meta command with all parameters specified before sending any data frames, but this is not required.
+99 - Closing, this indicates to the blender that this source will soon be closing so it should transition away from it asap. (NOT IMPLEMENTED YET).
