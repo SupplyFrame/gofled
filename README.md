@@ -6,12 +6,28 @@ A Fantastic LED project in Go.
 Installation
 ============
 
+```bash
 ./build-pru.sh
 go build
+```
+
+Now you need to configure both the PRU-1 and the SPI-1. We're using the default Debian image on our BBB, this comes with the Adafruit SPI, and a default PRU-1 overlay.
+
+```bash
+echo ADAFRUIT-SPI1 > /sys/devices/bone_capemgr.*/slots
+echo BB-BONE-PRU-01 > /sys/devices/bone_capemgr.*/slots
+modprobe uio-pruss
+```
+
+These can be setup to activate automatically by modifying your uEnv.txt in the root of your SD card. The UIO-Pruss module can be enabled in /etc/modules.
 
 Running
 =======
+Change to the directory where you cloned this repository then:
+
+```bash
 sudo LD_LIBRARY_PATH=. ./gofled
+```
 
 Theory
 ======
@@ -36,9 +52,9 @@ All sources have a blend mode, defaulting to Add.
 
 The simplest new source will just start sending frame data. It creates an active source by default and will be available for display by the blender.
 
-To setup an Inactive Source, first send the SetActive(False) command, then start sending data.
+To setup an Inactive Source, first send the active command, then start sending data.
 
-To bring a source to the top and display it temporarily over all others call SetOverlay(duration)
+To bring a source to the top and display it temporarily over all others call the overlay command.
 
 
 
