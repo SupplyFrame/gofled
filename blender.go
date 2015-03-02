@@ -24,6 +24,8 @@ type Blender struct {
 	joining chan *FrameSource 		// a channel for adding sources
 	leaving chan *FrameSource 		// a channel for removing sources
 
+	transition *Transition
+
 	data []byte						// the rendered sources
 
 	commands chan BlenderCommand 	// a command channel, used to select sources, overlay sources, trigger redraws etc
@@ -111,21 +113,29 @@ func (b *Blender) Start() {
 }
 
 func (b *Blender) Redraw() {
-	// blend all active sources and write into data array for pushing out
+	// check we have an active source
 	if b.primaryActive == nil {
-		return // leave as is
+		return
 	}
 	if b.primaryActive.current == nil {
 		return
 	}
+	if (b.transition != nil) {
+		data := b.transition.Render()
+		copy(b.data, data)
+	} else {
+		// copy active source over data array
+		copy(b.data, b.primaryActive.current)
+		// render other layers on top
+		b.DrawActiveLayers(b.data)
+	}
+}
 
-	// wipe the data array and then start blending through the active sources
-	copy(b.data, b.primaryActive.current)
-
+func (b *Blender) DrawActiveLayers(data []byte) {
 	if (len(b.active) > 0) {
 		// loop over each source and blend the pixels into the b.data array
-		for i := 0; i < len(b.data); i++ {
-			v := b.data[i]
+		for i := 0; i < len(data); i++ {
+			v := data[i]
 			for s:=0; s < len(b.active); s++ {
 				if b.active[s].current == nil {
 					continue
@@ -133,18 +143,18 @@ func (b *Blender) Redraw() {
 				f := getBlendFunc(b.active[s].blendMode)
 				v = blend(f, v, b.active[s].current[i], b.active[s].amount)
 			}
-			b.data[i] = v
+			data[i] = v
 		}
-		
 	}
 }
+
 func (b *Blender) RefreshSources(dst chan *Message) {
 	for _, src := range b.sources {
 		b.broker.messages <- &Message{ID: strconv.Itoa(src.ID), Type: "add-source", Dest: dst, Data: structs.Map(src)}
 	}
 }
 
-func (b *Blender) RandomSource() {
+func (b *Blender) RandomSource() *FrameSource {
 	// select a new random source
 
 	// count number of active sources
@@ -157,7 +167,7 @@ func (b *Blender) RandomSource() {
 	if activeCount == 0 {
 		b.primaryActive = nil
 		b.active = nil
-		return
+		return nil
 	}
 	// use total count as a probability value so if we have 6 sources, we have a 1/6 chance of picking any specific source
 	target := rand.Intn(activeCount)
@@ -169,18 +179,24 @@ func (b *Blender) RandomSource() {
 		}
 		if matched == target {
 			fmt.Println("Active source = ", src.ID)
-			b.primaryActive = src
-			return
+			return src
 		}
 		matched++
 	}
+	return nil
 }
 
 func (b *Blender) SourceSelector() {
 	// run in a loop forever, select a source and run for 5 minutes before repeating
 	for {
-		b.RandomSource()
-		time.Sleep(30*time.Second)
+		src := b.RandomSource()
+		if (b.primaryActive == nil) {
+			b.primaryActive = src
+		} else {
+			// setup a transition from current active to new source
+			b.transition = NewTransition(b, src, 5*time.Second)
+		}
+		time.Sleep(10*time.Second)
 	}
 }
 

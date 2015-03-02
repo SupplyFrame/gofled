@@ -67,7 +67,16 @@ func Renderer(numLEDs int, blender *Blender) {
 
 		//copy(data[11:], []C.uchar(blender.Data))
 		for i:=0; i < len(blender.data); i++ {
-			data[11+i] = C.uchar(blender.data[i])
+			// we need to reverse the ordering of led data every other row
+			// so figure out our row position
+			y := i / ledWidth
+			x := i % ledWidth
+			// then if we're on an even row
+			if y % 2 == 0 {
+				data[11+i] = C.uchar(blender.data[i])
+			} else {
+				data[11+(ledWidth*3)-x] = C.uchar(blender.data[i])
+			}
 		}
 		data[5] = 1; // send!
 
