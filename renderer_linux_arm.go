@@ -50,7 +50,7 @@ func Renderer(numLEDs int, blender *Blender) {
 
 	fmt.Println("Data at PRU :", data[6])
 	
-	start := time.Now()
+	//start := time.Now()
 	frameCount := 0
 
 	// set number of leds....
@@ -65,31 +65,47 @@ func Renderer(numLEDs int, blender *Blender) {
 	for {
 		blender.Redraw()
 
-		//copy(data[11:], []C.uchar(blender.Data))
-		for i:=0; i < len(blender.data); i++ {
-			// we need to reverse the ordering of led data every other row
-			// so figure out our row position
-			y := i / ledWidth
-			x := i % ledWidth
-			// then if we're on an even row
-			if y % 2 == 0 {
-				data[11+i] = C.uchar(blender.data[i])
-			} else {
-				data[11+(ledWidth*3)-x] = C.uchar(blender.data[i])
+		for y := 0; y < ledHeight; y++ {
+			for x := 0; x < ledWidth; x++ {
+				ledPos := 0
+				i := y*(ledWidth*3)+x*3
+				if y%2==0 {
+					//even rows are normal address
+					ledPos = i
+				} else {
+					// odd rows are reversed on x
+					ledPos = y*(ledWidth*3) + ((ledWidth-1)*3) - x*3
+				}
+				data[11+ledPos] = C.uchar(blender.data[i])
+				data[11+ledPos+1] = C.uchar(blender.data[i+1])
+				data[11+ledPos+2] = C.uchar(blender.data[i+2])
 			}
 		}
+		//copy(data[11:], []C.uchar(blender.Data))
+		/*for i:=0; i < len(blender.data); i++ {
+			// we need to reverse the ordering of led data every other row
+			// so figure out our row position
+			//y := i / ledWidth
+			//x := i % ledWidth
+			// then if we're on an even row
+			//if y % 2 == 0 {
+				data[11+i] = C.uchar(blender.data[i])
+			//} else {
+			//	data[11+y*(ledWidth*3)-x*3] = C.uchar(blender.data[i])
+			//}
+		}*/
 		data[5] = 1; // send!
 
 		frameCount++
 
-		if frameCount >= 60 {
+		/*if frameCount >= 60 {
 			elapsed := time.Since(start)
 			start = time.Now()
 			// compute average
 			fps := 1.0 / (elapsed.Seconds() / float64(frameCount))
 			fmt.Println("FPS : ", fps)
 			frameCount = 0
-		}
+		}*/
 		// yield to other processes
 		runtime.Gosched()
 		time.Sleep(1*time.Microsecond)
