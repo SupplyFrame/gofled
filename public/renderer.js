@@ -20,11 +20,7 @@
 
 			this.container.appendChild(renderer.view);
 
-			// create stage and background texture
 			var stage = new PIXI.Stage(0x000000);
-			var bgTex = PIXI.Texture.fromImage("/public/bg.jpg");
-			var bgSprite = new PIXI.Sprite(bgTex);
-			stage.addChild(bgSprite);
 
 			this.stage = stage;
 
@@ -78,9 +74,10 @@
 			for (var y=0; y < this.pixelHeight; y++) {
 				pixels[y] = [];
 				for (var x=0; x < this.pixelWidth; x++) {
-					var pixel = new PIXI.Sprite.fromImage("/public/point.png");
+					var pixel = new PIXI.Sprite.fromImage("/public/point-small.png");
 					pixels[y][x] = pixel;
 					pixel.blendMode = PIXI.blendModes.ADD;
+					pixel.alpha = 1;
 					pixel.anchor.x = 0.5;
 					pixel.anchor.y = 0.5;
 
