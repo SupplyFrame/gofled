@@ -41,6 +41,10 @@ type FrameSource struct {
 
 	// blending parameters
 	amount		float64 // amount of this channel that we blend in, 0.0 to 1.0
+
+	// transition values
+	transitionFrame []byte
+	transition *Transition
 }
 
 var nextSourceId = 1
@@ -50,9 +54,26 @@ func (src *FrameSource) AddFrame(frame []byte) {
 	src.current = frame
 }
 
+func (src *FrameSource) GetFrame() []byte {
+	if src.transition != nil {
+		frame, complete := src.transition.Draw(src.transitionFrame)
+		if complete {
+			src.transition = nil
+		}
+		return frame
+	}
+	return src.current
+}
+
 func (src *FrameSource) StartTransition() {
 	// indicates to the renderer that this source wants to render a transition in its frames
 	fmt.Println("Start transition")
+	// copy the current frame data into an internal reference
+	// we'll then blend from that data to the current frame before drawing
+	src.transitionFrame = make([]byte, len(src.current))
+	copy(src.transitionFrame, src.current)
+	// select a random transition and don't give it a blender
+	src.transition = NewTransition(nil, src)
 }
 
 func (src *FrameSource) SetMeta(meta map[string] interface{}) {

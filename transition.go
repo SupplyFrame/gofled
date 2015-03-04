@@ -17,7 +17,7 @@ import (
 
 type TransitionInterface interface {
 	Start(transition *Transition)
-	Draw(oldSrc *FrameSource, newSrc *FrameSource, elapsed time.Duration) []byte
+	Draw(oldSrc []byte, newSrc []byte, elapsed time.Duration) []byte
 	Duration() time.Duration
 }
 
@@ -35,14 +35,28 @@ func (self *Transition) Init(blender *Blender, newSrc *FrameSource, worker Trans
 
 	self.Worker.Start(self)
 }
-func (self *Transition) Render() []byte {
+func (self *Transition) Draw(src []byte) ([]byte, bool) {
 	elapsed := time.Since(self.StartTime)
-	newData := self.Worker.Draw(self.BlenderPtr.primaryActive, self.NewSrc, elapsed)
+	newData := self.Worker.Draw(src, self.NewSrc.current, elapsed)
+
+	complete := false
+	if elapsed >= self.Worker.Duration() {
+		complete = true
+	}
+	return newData, complete
+}
+
+func (self *Transition) Render() []byte {
+	if self.BlenderPtr == nil {
+		return self.NewSrc.current
+	}
+
+	newData, complete := self.Draw(self.BlenderPtr.primaryActive.current)
 
 	// render other layers on top
 	self.BlenderPtr.DrawActiveLayers(newData)
 
-	if elapsed >= self.Worker.Duration() {
+	if complete {
 		// remove ourself from the blender
 		self.BlenderPtr.transition = nil
 		self.BlenderPtr.primaryActive = self.NewSrc
@@ -61,16 +75,16 @@ func (self *CrossFadeTransition) Duration() time.Duration {
 func (self *CrossFadeTransition) Start(_ *Transition) {
 	log.Println("CrossFadeTransition:Start")
 }
-func (self *CrossFadeTransition) Draw(oldSrc *FrameSource, newSrc *FrameSource, elapsed time.Duration) []byte {
+func (self *CrossFadeTransition) Draw(oldSrc []byte, newSrc []byte, elapsed time.Duration) []byte {
 	// blend between old src and new src based on elapsed time
 	// return a byte array resulting from the blend
-	data := make([]byte, len(oldSrc.current))
+	data := make([]byte, len(oldSrc))
 
 	percent := elapsed.Seconds() / self.Duration().Seconds()
 	// blend over the new source based on percentage elapsed
 	for i := 0; i < len(data); i++ {
-		oldV := byte(float64(oldSrc.current[i]) * (1-percent))
-		newV := byte(float64(newSrc.current[i]) * (percent))
+		oldV := byte(float64(oldSrc[i]) * (1-percent))
+		newV := byte(float64(newSrc[i]) * (percent))
 		data[i] = oldV + newV
 	}
 	return data
@@ -108,10 +122,10 @@ func (self *WipeTransition) Start(t *Transition) {
 
 	go tween(easeInOutQuad, 10*time.Millisecond, self.Duration(), startPos, endPos, &self.percent)
 }
-func (self *WipeTransition) Draw(oldSrc *FrameSource, newSrc *FrameSource, elapsed time.Duration) []byte {
+func (self *WipeTransition) Draw(oldSrc []byte, newSrc []byte, elapsed time.Duration) []byte {
 	// blend between old src and new src based on elapsed time
 	// return a byte array resulting from the blend
-	data := make([]byte, len(oldSrc.current))
+	data := make([]byte, len(oldSrc))
 
 	// blend over the new source based on percentage elapsed
 	for i := 0; i < len(data); i++ {
@@ -133,25 +147,25 @@ func (self *WipeTransition) Draw(oldSrc *FrameSource, newSrc *FrameSource, elaps
 
 		if self.direction == WIPE_LEFT || self.direction == WIPE_UP {
 			if crossover > 0 {
-				data[i] = newSrc.current[i]
+				data[i] = newSrc[i]
 			} else if crossover < -self.margin {
-				data[i] = oldSrc.current[i]
+				data[i] = oldSrc[i]
 			} else {
 				// crossover = 0.0 -> 0.3
 				// at 0.3 we want all old, at 0.0 we want all new
 				percentOld := (crossover / -self.margin)
-				data[i] = byte((float64(oldSrc.current[i]) * (percentOld)) + (float64(newSrc.current[i]) * (1-percentOld)))
+				data[i] = byte((float64(oldSrc[i]) * (percentOld)) + (float64(newSrc[i]) * (1-percentOld)))
 			}
 		} else {
 			if crossover < 0 {
-				data[i] = newSrc.current[i]
+				data[i] = newSrc[i]
 			} else if crossover > self.margin {
-				data[i] = oldSrc.current[i]
+				data[i] = oldSrc[i]
 			} else {
 				// crossover = 0.0 -> 0.3
 				// at 0.3 we want all old, at 0.0 we want all new
 				percentOld := (crossover / self.margin)
-				data[i] = byte((float64(oldSrc.current[i]) * (percentOld)) + (float64(newSrc.current[i]) * (1-percentOld)))
+				data[i] = byte((float64(oldSrc[i]) * (percentOld)) + (float64(newSrc[i]) * (1-percentOld)))
 			}
 		}
 		
@@ -173,11 +187,7 @@ func NewTransition(blender *Blender, newSrc *FrameSource) *Transition {
 
 	t := TransitionTypes[r]
 
-	/*log.Println("Transition : ", t.Name())
-	v := reflect.New(t)
-	worker := v.Interface().(TransitionInterface)*/
-
-	// createa transition
+	// create a transition
 	transition := Transition{}
 	transition.Init(blender, newSrc, t)
 

@@ -125,7 +125,7 @@ func (b *Blender) Redraw() {
 		copy(b.data, data)
 	} else {
 		// copy active source over data array
-		copy(b.data, b.primaryActive.current)
+		copy(b.data, b.primaryActive.GetFrame())
 		// render other layers on top
 		b.DrawActiveLayers(b.data)
 	}
