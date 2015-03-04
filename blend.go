@@ -5,36 +5,46 @@ import "math"
 type blendFunc func(byte, byte) byte
 
 func blend(f blendFunc, dst byte, src byte, amount float64) byte {
-	srcVal := byte(float64(src) * amount)
-	return f(dst, srcVal)	
+	v := f(dst, src)
+	d := byte((float64(dst)*(1-amount)) + (float64(v)*amount))
+	return d
+}
+
+var blendMap = map[string]blendFunc {
+	"replace": blendReplace,
+	"add": blendAdd,
+	"darken": blendDarken,
+	"multiply": blendMultiply,
+	"colorBurn": blendColorBurn,
+	"linearBurn": blendLinearBurn,
+	"screen": blendScreen,
+	"colorDodge": blendColorDodge,
+	"overlay": blendOverlay,
+	"difference": blendDifference,
+	"exclusion": blendExclusion,
+	"subtract": blendSubtract,
+}
+
+func validBlendFunc(name string) bool {
+	if _, ok := blendMap[name]; ok {
+		return ok
+	}
+	return false
 }
 
 func getBlendFunc(name string) blendFunc {
-	switch name {
-	case "add":
-		return blendAdd
-	case "darken":
-		return blendDarken
-	case "multiply":
-		return blendMultiply
-	case "colorBurn":
-		return blendColorBurn
-	case "linearBurn":
-		return blendLinearBurn
-	case "screen":
-		return blendScreen
-	case "colorDodge":
-		return blendColorDodge
-	case "overlay":
-		return blendOverlay
-	case "difference":
-		return blendDifference
-	case "exclusion":
-		return blendExclusion
-	case "subtract":
-		return blendSubtract
+	if val, ok := blendMap[name]; ok {
+		return val
 	}
 	return blendAdd
+}
+
+func blendReplace(dst byte, src byte) byte {
+	if src == 0 {
+		return dst
+	} else {
+		return src
+	}
 }
 
 func blendAdd(dst byte, src byte) byte {

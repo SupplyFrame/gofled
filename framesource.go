@@ -64,7 +64,9 @@ func (src *FrameSource) SetMeta(meta map[string] interface{}) {
 		src.fps = int(val.(float64))
 	}
 	if val, ok := meta["blendMode"]; ok {
-		src.blendMode = val.(string)
+		if validBlendFunc(val.(string)) {
+			src.blendMode = val.(string)	
+		}
 	}
 	if val, ok := meta["author"]; ok {
 		src.author = val.(string)
@@ -102,8 +104,7 @@ func (src *FrameSource) ParseCommand(cmd Command, data []byte) {
 			// specifies the blend mode for this source
 			n := bytes.Index(data, []byte{0})
 			s := string(data[:n])
-			switch s {
-			case "add":
+			if validBlendFunc(s) {
 				src.blendMode = s
 			}
 		case CmdSetActive:
