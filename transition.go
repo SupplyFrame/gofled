@@ -11,42 +11,62 @@ package main
 
 import (
 	"time"
-	"math"
+	"math/rand"
+	"log"
 )
 
-type TransitionFunc func(oldSrc *FrameSource, newSrc *FrameSource, elapsed time.Duration, total time.Duration) []byte
-
-type Transition struct {
-	blender *Blender
-	newSrc *FrameSource
-	elapsed time.Duration
-	start time.Time
-	duration time.Duration
-	transition TransitionFunc
+type TransitionInterface interface {
+	Start(transition *Transition)
+	Draw(oldSrc *FrameSource, newSrc *FrameSource, elapsed time.Duration) []byte
+	Duration() time.Duration
 }
 
-func (t *Transition) Render() []byte {
-	// update elapsed
-	t.elapsed = time.Since(t.start)
-	newData := t.transition(t.blender.primaryActive, t.newSrc, t.elapsed, t.duration)
+type Transition struct {
+	BlenderPtr *Blender
+	NewSrc *FrameSource
+	StartTime time.Time
+	Worker TransitionInterface
+}
+func (self *Transition) Init(blender *Blender, newSrc *FrameSource, worker TransitionInterface) {
+	self.BlenderPtr = blender
+	self.NewSrc = newSrc
+	self.StartTime = time.Now()
+	self.Worker = worker
+
+	self.Worker.Start(self)
+}
+func (self *Transition) Render() []byte {
+	elapsed := time.Since(self.StartTime)
+	newData := self.Worker.Draw(self.BlenderPtr.primaryActive, self.NewSrc, elapsed)
 
 	// render other layers on top
-	t.blender.DrawActiveLayers(newData)
+	self.BlenderPtr.DrawActiveLayers(newData)
 
-	if t.elapsed >= t.duration {
+	if elapsed >= self.Worker.Duration() {
 		// remove ourself from the blender
-		t.blender.transition = nil
-		t.blender.primaryActive = t.newSrc
+		self.BlenderPtr.transition = nil
+		self.BlenderPtr.primaryActive = self.NewSrc
+		self.BlenderPtr = nil
+		self.Worker = nil
 	}
 	return newData
 }
 
-func CrossFadeTransition(oldSrc *FrameSource, newSrc *FrameSource, elapsed time.Duration, total time.Duration) []byte {
+type CrossFadeTransition struct {	
+	duration time.Duration
+}
+func (self *CrossFadeTransition) Duration() time.Duration {
+	return self.duration
+}
+func (self *CrossFadeTransition) Start(_ *Transition) {
+	log.Println("CrossFadeTransition:Start")
+}
+func (self *CrossFadeTransition) Draw(oldSrc *FrameSource, newSrc *FrameSource, elapsed time.Duration) []byte {
 	// blend between old src and new src based on elapsed time
 	// return a byte array resulting from the blend
 	data := make([]byte, len(oldSrc.current))
 
-	percent := elapsed.Seconds() / total.Seconds()
+	percent := elapsed.Seconds() / self.Duration().Seconds()
 	// blend over the new source based on percentage elapsed
 	for i := 0; i < len(data); i++ {
 		oldV := byte(float64(oldSrc.current[i]) * (1-percent))
@@ -55,32 +75,111 @@ func CrossFadeTransition(oldSrc *FrameSource, newSrc *FrameSource, elapsed time.
 	}
 	return data
 }
-func WipeTransition(oldSrc *FrameSource, newSrc *FrameSource, elapsed time.Duration, total time.Duration) []byte {
+
+type WipeDir int
+const (
+	WIPE_UP WipeDir = iota
+	WIPE_DOWN
+	WIPE_LEFT
+	WIPE_RIGHT
+)
+type WipeTransition struct {
+	duration time.Duration
+
+	margin float64
+	direction WipeDir
+	percent float64
+}
+func (self *WipeTransition) Duration() time.Duration {
+	return self.duration
+}
+func (self *WipeTransition) Start(t *Transition) {
+	log.Println("WipeTweenTransition:Start")
+	// initialize a tween, query the transition object to find out details
+	self.percent = 0
+
+	startPos := -self.margin
+	endPos := 1.0
+	if self.direction == WIPE_LEFT || self.direction == WIPE_UP {
+		startPos = 1.0+self.margin
+		endPos = 0
+	}
+	self.percent = startPos
+
+	go tween(easeInOutQuad, 10*time.Millisecond, self.Duration(), startPos, endPos, &self.percent)
+}
+func (self *WipeTransition) Draw(oldSrc *FrameSource, newSrc *FrameSource, elapsed time.Duration) []byte {
 	// blend between old src and new src based on elapsed time
 	// return a byte array resulting from the blend
 	data := make([]byte, len(oldSrc.current))
 
-	percent := elapsed.Seconds() / total.Seconds()
-	crossover := int(math.Floor(float64(ledWidth) * percent))
 	// blend over the new source based on percentage elapsed
 	for i := 0; i < len(data); i++ {
-		x := (i % ledWidth)
-		if x > crossover {
-			data[i] = oldSrc.current[i]
-		} else {
-			data[i] = newSrc.current[i]
+
+		x, y := XY(i)
+
+		crossover := 0.0
+
+		switch self.direction {
+		case WIPE_RIGHT:
+			crossover = (float64(x)/float64(ledWidth)) - self.percent
+		case WIPE_LEFT:
+			crossover = (float64(x)/float64(ledWidth)) - (self.percent)
+		case WIPE_UP:
+			crossover =  (float64(y)/float64(ledHeight)) - (self.percent)
+		case WIPE_DOWN:
+			crossover =  (float64(y)/float64(ledHeight)) - self.percent
 		}
+
+		if self.direction == WIPE_LEFT || self.direction == WIPE_UP {
+			if crossover > 0 {
+				data[i] = newSrc.current[i]
+			} else if crossover < -self.margin {
+				data[i] = oldSrc.current[i]
+			} else {
+				// crossover = 0.0 -> 0.3
+				// at 0.3 we want all old, at 0.0 we want all new
+				percentOld := (crossover / -self.margin)
+				data[i] = byte((float64(oldSrc.current[i]) * (percentOld)) + (float64(newSrc.current[i]) * (1-percentOld)))
+			}
+		} else {
+			if crossover < 0 {
+				data[i] = newSrc.current[i]
+			} else if crossover > self.margin {
+				data[i] = oldSrc.current[i]
+			} else {
+				// crossover = 0.0 -> 0.3
+				// at 0.3 we want all old, at 0.0 we want all new
+				percentOld := (crossover / self.margin)
+				data[i] = byte((float64(oldSrc.current[i]) * (percentOld)) + (float64(newSrc.current[i]) * (1-percentOld)))
+			}
+		}
+		
 	}
 	return data
 }
 
-func NewTransition(blender *Blender, newSrc *FrameSource, duration time.Duration) *Transition {
-	return &Transition{
-		blender: blender,
-		newSrc: newSrc,
-		duration: duration,
-		elapsed: 0,
-		start: time.Now(),
-		transition: WipeTransition,
-	}
+var TransitionTypes = []TransitionInterface {
+	&WipeTransition{ duration: 2*time.Second, margin:0.1, direction:WIPE_LEFT },
+	&WipeTransition{ duration: 2*time.Second, margin:0.1, direction:WIPE_UP },
+	&WipeTransition{ duration: 2*time.Second, margin:0.1, direction:WIPE_DOWN },
+	&WipeTransition{ duration: 2*time.Second, margin:0.1, direction:WIPE_RIGHT },
+	&CrossFadeTransition{ duration: 3*time.Second },
+}
+
+func NewTransition(blender *Blender, newSrc *FrameSource) *Transition {
+	// pick a random transition type
+	r := rand.Intn(len(TransitionTypes))
+
+	t := TransitionTypes[r]
+
+	/*log.Println("Transition : ", t.Name())
+	v := reflect.New(t)
+	worker := v.Interface().(TransitionInterface)*/
+
+	// createa transition
+	transition := Transition{}
+	transition.Init(blender, newSrc, t)
+
+	return &transition
 }

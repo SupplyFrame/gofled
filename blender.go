@@ -157,6 +157,8 @@ func (b *Blender) RefreshSources(dst chan *Message) {
 func (b *Blender) RandomSource() *FrameSource {
 	// select a new random source
 
+	currentSource := b.primaryActive
+
 	// count number of active sources
 	activeCount := 0
 	for _,src := range b.sources {
@@ -170,20 +172,22 @@ func (b *Blender) RandomSource() *FrameSource {
 		return nil
 	}
 	// use total count as a probability value so if we have 6 sources, we have a 1/6 chance of picking any specific source
-	target := rand.Intn(activeCount)
-	matched := 0
-	for _,src := range b.sources {
-		// skip over inactive sources
-		if !src.active {
-			continue
+	for i:=0; i < 50; i++ {
+		target := rand.Intn(activeCount)
+		matched := 0
+		for _,src := range b.sources {
+			// skip over inactive sources
+			if !src.active {
+				continue
+			}
+			if matched == target && src != currentSource {
+				fmt.Println("Active source = ", src.ID)
+				return src
+			}
+			matched++
 		}
-		if matched == target {
-			fmt.Println("Active source = ", src.ID)
-			return src
-		}
-		matched++
 	}
-	return nil
+	return currentSource
 }
 
 func (b *Blender) SourceSelector() {
@@ -194,7 +198,7 @@ func (b *Blender) SourceSelector() {
 			b.primaryActive = src
 		} else {
 			// setup a transition from current active to new source
-			b.transition = NewTransition(b, src, 5*time.Second)
+			b.transition = NewTransition(b, src)
 		}
 		time.Sleep(10*time.Second)
 	}

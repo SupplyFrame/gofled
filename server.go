@@ -38,6 +38,16 @@ const (
 	TCP_READ_DATA	= 1 // reading packet data
 )
 
+func XY(pos int) (x int, y int) {
+	ledPos := pos / 3
+	x = ledPos % ledWidth
+	y = ledPos / ledWidth
+	return x,y
+}
+func POS(x int, y int) (pos int) {
+	pos = (y*ledWidth + x) * 3
+	return pos
+}
 
 func tcpHandler(conn net.Conn) {
 	state := TCP_READ_LEN
