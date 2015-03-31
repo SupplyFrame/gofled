@@ -1,0 +1,3 @@
+[submodule "LEDscape"]
+	path = LEDscape
+	url = git@github.com:benjamind/LEDscape.git
