@@ -82,7 +82,7 @@ func (b *Blender) Start() {
 				b.broker.messages <- &Message{ID: strconv.Itoa(s.ID), Type: "add-source", Data: structs.Map(s) }
 				// if length is now 1, do a selectsource
 				if len(b.sources) == 1 {
-					b.RandomSource()
+					b.primaryActive = s
 				}
 			case s := <-b.leaving:
 				// release the command channel
@@ -97,10 +97,6 @@ func (b *Blender) Start() {
 				for p, v := range b.active {
 					if v == s {
 						b.active = append(b.active[:p], b.active[p+1:]...)
-						// trigger a source selection if we only have one source
-						if len(b.sources) == 1 {
-							b.RandomSource()
-						}
 						break
 					}
 				}
@@ -162,7 +158,7 @@ func (b *Blender) RandomSource() *FrameSource {
 	// count number of active sources
 	activeCount := 0
 	for _,src := range b.sources {
-		if src.active && src.Ready {
+		if src.active {
 			activeCount++
 		}
 	}
@@ -177,7 +173,7 @@ func (b *Blender) RandomSource() *FrameSource {
 		matched := 0
 		for _,src := range b.sources {
 			// skip over inactive sources
-			if !src.active || !src.Ready {
+			if !src.active {
 				continue
 			}
 			if matched == target && src != currentSource {
