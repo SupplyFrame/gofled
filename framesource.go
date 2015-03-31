@@ -23,6 +23,11 @@ type FrameSource struct {
 	ID 			int
 	// the current slice of frame data
 	current		[]byte `json:"-"`
+	// a buffer of frames
+	buffer 		chan []byte `json:"-"`
+
+	// is the source ready for use?
+	Ready		bool
 
 	// the src ip that is sending us this data
 	clientIP	net.Addr
@@ -51,7 +56,17 @@ var nextSourceId = 1
 
 func (src *FrameSource) AddFrame(frame []byte) {
 	// store the new frame
-	src.current = frame
+	select {
+		case src.buffer <- frame: // pushed frame onto buffer since there's some space
+			src.Ready = false
+		default:
+			// no space on the buffer
+			// pop the first item off and use as current frame
+			src.current = <- src.buffer
+			// now push it on
+			src.buffer <- frame
+			src.Ready = true
+	}
 }
 
 func (src *FrameSource) GetFrame() []byte {
@@ -154,7 +169,7 @@ func (src *FrameSource) ParseCommand(cmd Command, data []byte) {
 func NewFrameSource(numLEDs int, bufferLen int, clientIP net.Addr) *FrameSource {
 	source := &FrameSource{
 		ID: nextSourceId,
-
+		buffer: make(chan []byte, 60),
 		clientIP: clientIP,
 
 		active: true,

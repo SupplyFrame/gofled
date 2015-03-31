@@ -162,7 +162,7 @@ func (b *Blender) RandomSource() *FrameSource {
 	// count number of active sources
 	activeCount := 0
 	for _,src := range b.sources {
-		if src.active {
+		if src.active && src.Ready {
 			activeCount++
 		}
 	}
@@ -177,7 +177,7 @@ func (b *Blender) RandomSource() *FrameSource {
 		matched := 0
 		for _,src := range b.sources {
 			// skip over inactive sources
-			if !src.active {
+			if !src.active || !src.Ready {
 				continue
 			}
 			if matched == target && src != currentSource {
