@@ -2,112 +2,69 @@
 
 package main
 
-/*
-#include "lib/spislave.h"
-#cgo LDFLAGS: -L. -lspislave -lprussdrv -lpthread
-*/
-import "C"
 
 import (
 	"time"
 	"fmt"
 	"os"
-	"os/signal"
 	"runtime"
-	"unsafe"
-	"reflect"
-	"encoding/binary"
+	"github.com/kellydunn/go-opc"
 )
 
+
+var opcClient *opc.Client
+
 func Renderer(numLEDs int, blender *Blender) {
-	// setup spi port
-	fmt.Println("Initializing SPI")
+	// setup a client
+	opcClient = opc.NewClient()
 
-	var sharedMem *C.uchar = C.spiinit()
-	
+	err := opcClient.Connect("tcp", "localhost:7890")
 
-	fmt.Println("SPI ready")
-	length := 25000
-	hdr := reflect.SliceHeader{
-		Data: uintptr(unsafe.Pointer(sharedMem)),
-		Len: length,
-		Cap: length,
+	if err != nil {
+		fmt.Println("Error while connecting to OPC server at localhost:7890 : ", err.Error())
+		os.Exit(1)
 	}
-	data := *(*[]C.uchar)(unsafe.Pointer(&hdr))
 
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, os.Interrupt)
-	go func() {
-		for sig := range signals {
-			fmt.Println("Received signal = ", sig)
-			C.spiclose()
-			go func() {
-				time.Sleep(3*time.Second)
-				os.Exit(1)
-			}()
-		}
-	}()
+	fmt.Println("Setting up ", ledWidth*ledHeight, " leds, in ", ledWidth, "x", ledHeight)
 
-	fmt.Println("Data at PRU :", data[6])
-	
-	//start := time.Now()
+
+	start := time.Now()
 	frameCount := 0
-
-	// set number of leds....
-	ledLenBuff := make([]byte, 4)
-	binary.LittleEndian.PutUint32(ledLenBuff, uint32(numLEDs))
-	// copy the bytes into the data array at position 7
-	data[7] = C.uchar(ledLenBuff[0])
-	data[8] = C.uchar(ledLenBuff[1])
-	data[9] = C.uchar(ledLenBuff[2])
-	data[10] = C.uchar(ledLenBuff[3])
 
 	for {
 		blender.Redraw()
-
+		// construct a message
+		m := opc.NewMessage(0)
+		m.SetLength(uint16(ledHeight*ledWidth)*3)
+		
+		// fill with data in serpentine fashion
 		for y := 0; y < ledHeight; y++ {
 			for x := 0; x < ledWidth; x++ {
 				ledPos := 0
-				i := y*(ledWidth*3)+x*3
+				i := y*ledWidth + x
+				dataPos := (y*ledWidth + x) * 3
 				if y%2==0 {
-					//even rows are normal address
 					ledPos = i
 				} else {
-					// odd rows are reversed on x
-					ledPos = y*(ledWidth*3) + ((ledWidth-1)*3) - x*3
+					ledPos = i
+					dataPos = (y*ledWidth + (ledWidth-1) - x) * 3
 				}
-				data[11+ledPos] = C.uchar(blender.data[i])
-				data[11+ledPos+1] = C.uchar(blender.data[i+1])
-				data[11+ledPos+2] = C.uchar(blender.data[i+2])
+				//fmt.Println("Set ", x,y,ledPos, blender.data[dataPos], blender.data[dataPos+1], blender.data[dataPos+2])
+				m.SetPixelColor(ledPos, byte(float64(blender.data[dataPos])*0.3), byte(float64(blender.data[dataPos+1])*0.3), byte(float64(blender.data[dataPos+2])*0.3))
 			}
 		}
-		//copy(data[11:], []C.uchar(blender.Data))
-		/*for i:=0; i < len(blender.data); i++ {
-			// we need to reverse the ordering of led data every other row
-			// so figure out our row position
-			//y := i / ledWidth
-			//x := i % ledWidth
-			// then if we're on an even row
-			//if y % 2 == 0 {
-				data[11+i] = C.uchar(blender.data[i])
-			//} else {
-			//	data[11+y*(ledWidth*3)-x*3] = C.uchar(blender.data[i])
-			//}
-		}*/
-		data[5] = 1; // send!
+		
+		opcClient.Send(m)
 
 		frameCount++
-
-		/*if frameCount >= 60 {
+		if frameCount >= 60 {
 			elapsed := time.Since(start)
 			start = time.Now()
-			// compute average
 			fps := 1.0 / (elapsed.Seconds() / float64(frameCount))
 			fmt.Println("FPS : ", fps)
 			frameCount = 0
-		}*/
-		// yield to other processes
+		}
 		runtime.Gosched()
-		time.Sleep(1*time.Microsecond)
+		time.Sleep(16*time.Millisecond)
 	}
 }
