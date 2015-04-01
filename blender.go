@@ -29,6 +29,8 @@ type Blender struct {
 	data []byte						// the rendered sources
 
 	commands chan BlenderCommand 	// a command channel, used to select sources, overlay sources, trigger redraws etc
+
+	lightsEnabled bool
 }
 
 // Start managing client connections and message broadcasts.
@@ -36,6 +38,9 @@ func (b *Blender) Start() {
 	// initialize random seed
 	rand.Seed(time.Now().UnixNano())
 
+	b.lightsEnabled = true
+
+	go monitor_switch(b.commands)
 	go b.SourceSelector()
 
 	go func() {
@@ -69,6 +74,12 @@ func (b *Blender) Start() {
 							}
 						}
 					}()
+				case "lights-off":
+					// disable all lights
+					b.lightsEnabled = false
+				case "lights-on":
+					// re-enable lights
+					b.lightsEnabled = true
 				default:
 					fmt.Println("Unknown blender command : ", cmd.Type)
 				}
@@ -109,6 +120,13 @@ func (b *Blender) Start() {
 }
 
 func (b *Blender) Redraw() {
+	if !b.lightsEnabled {
+		// no lights enabled, just draw black into the buffer
+		for index, _ := range b.data {
+			b.data[index] = 0
+		}
+		return
+	}
 	// check we have an active source
 	if b.primaryActive == nil {
 		return
