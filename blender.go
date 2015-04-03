@@ -26,7 +26,9 @@ type Blender struct {
 
 	transition *Transition
 
-	data []byte						// the rendered sources
+	framenum uint16						// the rendered sources
+	data1 []byte
+	data2 []byte
 
 	commands chan BlenderCommand 	// a command channel, used to select sources, overlay sources, trigger redraws etc
 
@@ -119,11 +121,34 @@ func (b *Blender) Start() {
 	}()
 }
 
+// draw into 'active' buffer
+// read from 'inactive' buffer
+// switch buffers when draw complete
+
+func (b *Blender) GetBuffer() []byte {
+	if b.framenum % 2 == 0 {
+		return b.data1
+	} else {
+		return b.data2
+	}
+}
+func (b *Blender) GetDrawBuffer() []byte {
+	if b.framenum % 2 == 0 {
+		return b.data2
+	} else {
+		return b.data1
+	}
+}
+
 func (b *Blender) Redraw() {
+	// select a frame from double buffer to draw into
+	buffer := b.GetDrawBuffer()
+	b.framenum = b.framenum + 1
+
 	if !b.lightsEnabled {
 		// no lights enabled, just draw black into the buffer
-		for index, _ := range b.data {
-			b.data[index] = 0
+		for index, _ := range buffer {
+			buffer[index] = 0
 		}
 		return
 	}
@@ -136,12 +161,12 @@ func (b *Blender) Redraw() {
 	}
 	if (b.transition != nil) {
 		data := b.transition.Render()
-		copy(b.data, data)
+		copy(buffer, data)
 	} else {
 		// copy active source over data array
-		copy(b.data, b.primaryActive.GetFrame())
+		copy(buffer, b.primaryActive.GetFrame())
 		// render other layers on top
-		b.DrawActiveLayers(b.data)
+		b.DrawActiveLayers(buffer)
 	}
 }
 
@@ -226,7 +251,9 @@ func NewBlender(numLEDs int, broker *Broker) *Blender {
 		active: make([]*FrameSource, 0, 50),
 		joining: make(chan *FrameSource),
 		leaving: make(chan *FrameSource),
-		data: make([]byte, numLEDs*3),
+		data1: make([]byte, numLEDs*3),
+		data2: make([]byte, numLEDs*3),
+		framenum: 0,
 		commands: make(chan BlenderCommand, 60), // buffered channel
 	}
 	return v;

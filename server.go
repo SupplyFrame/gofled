@@ -300,7 +300,7 @@ func clientHandler(w http.ResponseWriter, r *http.Request) {
 func sender() {
 	for {
 		// queue up a message via the broker
-		b.messages <- &Message{ID: "active", Type: "data", Body: blender.data}
+		b.messages <- &Message{ID: "active", Type: "data", Body: blender.GetBuffer()}
 		time.Sleep(33*time.Millisecond) // roughly 30fps
 	}
 }
