@@ -71,6 +71,7 @@ func tcpHandler(conn net.Conn) {
 		blender.leaving <- src
 	}()
 
+	start := time.Now()
 
 	for {
 		// create a buffer and read some bytes from the connection
@@ -133,8 +134,14 @@ func tcpHandler(conn net.Conn) {
 					
 					// send the command byte and the data slice into the parser
 					src.ParseCommand(Command(cmd), dataBuff[4:])
+
+					// frame received...how many milliseconds have elapsed?
+					elapsed := time.Since(start)
+					// calculate duration of sleep based on framesource fps
+					sleepMs := (1000.0 / float64(src.fps)) - elapsed.Seconds()*1000.0
 					// sleep so that we rate limit the connection to max 150fps
-					time.Sleep(33*time.Millisecond);
+					time.Sleep(time.Duration(sleepMs)*time.Millisecond);
+					start = time.Now()
 				}
 			}
 		}

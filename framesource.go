@@ -155,6 +155,7 @@ func NewFrameSource(numLEDs int, bufferLen int, clientIP net.Addr) *FrameSource 
 	source := &FrameSource{
 		ID: nextSourceId,
 
+		fps: 60,
 		clientIP: clientIP,
 
 		active: true,
