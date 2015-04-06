@@ -263,17 +263,20 @@ func clientHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	closer := c.CloseNotify()
+	websocketCloser := make(chan int,1)
 
 	fmt.Println("Client handler connected")
 
 	// setup reader to clear out ping messages
 	go func(c *websocket.Conn) {
 		for {
-			_, p, err := c.ReadMessage()
+			messageType, p, err := c.ReadMessage()
 			if err != nil {
+				fmt.Println("Error from readMessage :", err.Error())
+				close(websocketCloser)
 				return // socket gone wrong!
 			}
-
+			
 			var message map[string] interface{}
 
 			err = json.Unmarshal(p, &message)
@@ -290,10 +293,6 @@ func clientHandler(w http.ResponseWriter, r *http.Request) {
 					blender.brightness = brightness
 				}
 			}
-			/*if _, _, err := c.NextReader(); err != nil {
-				c.Close()
-				break
-			}*/
 		}
 	}(ws)
 
@@ -328,7 +327,10 @@ func clientHandler(w http.ResponseWriter, r *http.Request) {
 					}	
 				}
 			case <-closer:
-				fmt.Println("Closing connection\n")
+				fmt.Println("Closing connection")
+				return
+			case <- websocketCloser:
+				fmt.Println("Closing websocket")
 				return
 		}
 	}
