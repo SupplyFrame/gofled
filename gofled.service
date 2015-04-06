@@ -1,0 +1,10 @@
+[Unit]
+Description=GoFLED Server
+
+[Service]
+WorkingDirectory=/root/gopath/src/github.com/SupplyFrame/gofled/
+ExecStart=/root/gopath/src/github.com/SupplyFrame/gofled/gofled
+KillMode=control-group
+
+[Install]
+WantedBy=multi-user.target
