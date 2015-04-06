@@ -14,6 +14,7 @@ import (
 	"html/template"
 	"encoding/json"
 	"strconv"
+	"os/signal"
 )
 
 var (
@@ -24,6 +25,8 @@ var (
 	numLEDs = ledWidth * ledHeight
 	addr = ":9000"
 	tcpAddr = ":9001"
+	quit = make(chan int)
+	quitting = false
 	upgrader = websocket.Upgrader{
 		ReadBufferSize: 1024,
 		WriteBufferSize: 1024,
@@ -209,8 +212,8 @@ func sourceHandler(w http.ResponseWriter, r *http.Request) {
 			// send the command byte and the data slice into the parser
 			src.ParseCommand(Command(cmd), msg[4:])
 
-			// pause for minimum of 150fps to stop massive overloading of the server
-			time.Sleep(6*time.Millisecond);
+			// pause to achieve 30fps
+			time.Sleep(33*time.Millisecond);
 		} else {
 			// its a text message, echo it out for now
 			fmt.Println("Text message : ", msg)
@@ -345,6 +348,23 @@ func main() {
 	numCPU := MaxParallelism()
 	fmt.Println("MAX CPUS : ", numCPU)
 	runtime.GOMAXPROCS(numCPU)
+
+	// setup quit channel
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		for _ = range c {
+			if !quitting {
+				fmt.Println("Exiting system...")
+				close(quit)
+				quitting = true
+				// allow everything some time to exit
+				time.Sleep(2*time.Second)
+				fmt.Println("done.")
+    			os.Exit(1)       
+			}
+		}
+	}()
 
 	b = NewBroker()
 	b.Start()
