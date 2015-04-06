@@ -59,6 +59,9 @@ func tcpHandler(conn net.Conn) {
 
 	src := NewFrameSource(numLEDs, 10, conn.RemoteAddr())
 
+	// wait for 10 seconds before activating the source to allow TCP buffer to build up
+	time.Sleep(10*time.Second)
+
 	blender.joining <- src
 
 	fmt.Println("Active source initialized")
@@ -67,6 +70,7 @@ func tcpHandler(conn net.Conn) {
 		// cleanup the socket and remove the source from our data set
 		blender.leaving <- src
 	}()
+
 
 	for {
 		// create a buffer and read some bytes from the connection
@@ -130,7 +134,7 @@ func tcpHandler(conn net.Conn) {
 					// send the command byte and the data slice into the parser
 					src.ParseCommand(Command(cmd), dataBuff[4:])
 					// sleep so that we rate limit the connection to max 150fps
-					time.Sleep(6*time.Millisecond);
+					time.Sleep(33*time.Millisecond);
 				}
 			}
 		}
