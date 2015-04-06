@@ -19,6 +19,11 @@ echo BB-BONE-PRU-01 > /sys/devices/bone_capemgr.*/slots
 modprobe uio-pruss
 ```
 
+Add custom GPIO config at boot time. First copy `DM-GPIO-Test-00A0.dtbo` to `/lib/firmware` then edit file `/etc/default/capemgr` add the line:
+```bash
+CAPE=DM-GPIO-Test
+```
+
 These can be setup to activate automatically by modifying your uEnv.txt in the root of your SD card. The UIO-Pruss module can be enabled in /etc/modules.
 
 Running

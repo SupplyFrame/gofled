@@ -36,6 +36,7 @@ func Renderer(numLEDs int, blender *Blender) {
 		// construct a message
 		m := opc.NewMessage(0)
 		m.SetLength(uint16(ledHeight*ledWidth)*3)
+		buffer := blender.GetBuffer()
 		
 		// fill with data in serpentine fashion
 		for y := 0; y < ledHeight; y++ {
@@ -49,9 +50,10 @@ func Renderer(numLEDs int, blender *Blender) {
 					ledPos = i
 					dataPos = (y*ledWidth + (ledWidth-1) - x) * 3
 				}
-				//fmt.Println("Set ", x,y,ledPos, blender.data[dataPos], blender.data[dataPos+1], blender.data[dataPos+2])
-				buffer := blender.GetBuffer()
-				m.SetPixelColor(ledPos, byte(float64(buffer[dataPos])*0.3), byte(float64(buffer[dataPos+1])*0.3), byte(float64(buffer[dataPos+2])*0.3))
+				m.SetPixelColor(ledPos,
+					byte(float64(buffer[dataPos])*blender.brightness),
+					byte(float64(buffer[dataPos+1])*blender.brightness), 
+					byte(float64(buffer[dataPos+2])*blender.brightness))
 			}
 		}
 		

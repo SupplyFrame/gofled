@@ -32,6 +32,8 @@ type Blender struct {
 
 	commands chan BlenderCommand 	// a command channel, used to select sources, overlay sources, trigger redraws etc
 
+	brightness float64 				// brightness of the display (1.0 max)
+
 	lightsEnabled bool
 }
 
@@ -187,6 +189,14 @@ func (b *Blender) DrawActiveLayers(data []byte) {
 	}
 }
 
+func (b *Blender) RefreshSettings(dst chan *Message) {
+	settings := map[string] interface{} {
+		"brightness": b.brightness,
+	}
+
+	b.broker.messages <- &Message{ID: "-1", Type: "settings", Dest: dst, Data: settings}
+}
+
 func (b *Blender) RefreshSources(dst chan *Message) {
 	for _, src := range b.sources {
 		b.broker.messages <- &Message{ID: strconv.Itoa(src.ID), Type: "add-source", Dest: dst, Data: structs.Map(src)}
@@ -254,6 +264,7 @@ func NewBlender(numLEDs int, broker *Broker) *Blender {
 		data1: make([]byte, numLEDs*3),
 		data2: make([]byte, numLEDs*3),
 		framenum: 0,
+		brightness: 0.1,
 		commands: make(chan BlenderCommand, 60), // buffered channel
 	}
 	return v;

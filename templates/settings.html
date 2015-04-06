@@ -1,0 +1,70 @@
+{{ define "title" }}Home{{ end }}
+
+{{ define "head" }}
+{{ end }}
+
+{{ define "afterbody" }}
+<script>
+	function fireEvent(element,event){
+	    if (document.createEventObject){
+	    // dispatch for IE
+	    var evt = document.createEventObject();
+	    return element.fireEvent('on'+event,evt)
+	    }
+	    else{
+	    // dispatch for firefox + others
+	    var evt = document.createEvent("HTMLEvents");
+	    evt.initEvent(event, true, true ); // event type,bubbling,cancelable
+	    return !element.dispatchEvent(evt);
+	    }
+	}
+	// open a websocket for live updates
+	var c = new WebSocket("ws://" + window.location.hostname + ":9000/client");
+	c.onerror = function(e) {
+		console.log("Socket error : ", e);
+	};
+
+	c.binaryType = 'arraybuffer';
+
+	var activeSource = null;
+	c.onopen = function() {
+		c.onmessage = function(response) {
+			if (typeof response.data === "string") {
+				// this is a normal json message
+				var msg = JSON.parse(response.data);
+				if (msg.Type == "settings") {
+					// populate UI with all settings delivered from server
+					if (msg.Data.brightness) {
+						var brightnessEl = document.getElementById("brightness");
+						brightnessEl.value = msg.Data.brightness * 100;
+						fireEvent(brightnessEl, 'input');
+					}
+				}
+			}
+		};
+	};
+	var brightnessEl = document.getElementById("brightness");
+	brightnessEl.addEventListener("input", function(ev) {
+		var val = ev.currentTarget.value;
+		var level = document.getElementById('brightnessLevel');
+		level.value = val + "%";
+
+		// send updated value
+		c.send(JSON.stringify({
+			Type: "settings",
+			Data: {
+				"brightness": (val / 100)
+			}
+		}));
+	});
+</script>
+{{ end }}
+
+{{ define "content" }}
+	<section id="settings">
+		<!-- render controls for settings here -->		
+		<label for="brightness">Brightness</label>
+		<input name="brightness" type="range" min="0" max="100" value="30" id="brightness" step="1">
+		<output for="brightness" id="brightnessLevel">30%</output>
+	</section>
+{{ end }}

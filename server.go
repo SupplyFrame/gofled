@@ -269,16 +269,39 @@ func clientHandler(w http.ResponseWriter, r *http.Request) {
 	// setup reader to clear out ping messages
 	go func(c *websocket.Conn) {
 		for {
-			if _, _, err := c.NextReader(); err != nil {
+			_, p, err := c.ReadMessage()
+			if err != nil {
+				return // socket gone wrong!
+			}
+
+			var message map[string] interface{}
+
+			err = json.Unmarshal(p, &message)
+			if err != nil {
+				fmt.Println("Failed to unmarshal message content : ", err.Error())
+				continue
+			}
+			if message["Type"] == "settings" {
+				// cast data to map
+				settings := message["Data"].(map[string] interface{})
+				// settings received!
+				if val, ok := settings["brightness"]; ok {
+					brightness := val.(float64)
+					blender.brightness = brightness
+				}
+			}
+			/*if _, _, err := c.NextReader(); err != nil {
 				c.Close()
 				break
-			}
+			}*/
 		}
 	}(ws)
 
 	go func() {
 		time.Sleep(50*time.Millisecond) // wait a little to make sure this client is ready to receive
 		blender.RefreshSources(in) // then send a list of all the current sources so the client is up to date
+		// now send settings values
+		blender.RefreshSettings(in)
 	}()
 
 	for {
@@ -355,6 +378,16 @@ func sourcesHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
+func settingsHandler(w http.ResponseWriter, req *http.Request) {
+	var settingsTemplate = template.Must(template.ParseFiles(
+		"templates/_base.html",
+		"templates/settings.html",
+	))
+	// render out a list of all sources with UI capable of rendering
+	if err := settingsTemplate.Execute(w, nil); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
 func main() {
 	numCPU := MaxParallelism()
 	fmt.Println("MAX CPUS : ", numCPU)
@@ -387,6 +420,7 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/sources", sourcesHandler)
 	r.HandleFunc("/source", sourceHandler)
+	r.HandleFunc("/settings", settingsHandler)
 	r.HandleFunc("/client", clientHandler)
 	r.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("./public/"))))
 	r.HandleFunc("/", indexHandler)
