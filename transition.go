@@ -37,12 +37,16 @@ func (self *Transition) Init(blender *Blender, newSrc *FrameSource, worker Trans
 }
 func (self *Transition) Draw(dst []byte, src []byte) (bool) {
 	elapsed := time.Since(self.StartTime)
-	self.Worker.Draw(dst, src, self.NewSrc.current, elapsed)
 
 	complete := false
+
 	if elapsed >= self.Worker.Duration() {
+		copy(dst, self.NewSrc.current)
 		complete = true
+	} else {
+		self.Worker.Draw(dst, src, self.NewSrc.current, elapsed)
 	}
+	
 	return complete
 }
 
