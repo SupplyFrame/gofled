@@ -162,8 +162,7 @@ func (b *Blender) Redraw() {
 		return
 	}
 	if (b.transition != nil) {
-		data := b.transition.Render()
-		copy(buffer, data)
+		b.transition.Render(buffer)
 	} else {
 		// copy active source over data array
 		copy(buffer, b.primaryActive.GetFrame())

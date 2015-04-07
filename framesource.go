@@ -56,11 +56,12 @@ func (src *FrameSource) AddFrame(frame []byte) {
 
 func (src *FrameSource) GetFrame() []byte {
 	if src.transition != nil {
-		frame, complete := src.transition.Draw(src.transitionFrame)
+		buffer := make([]byte, len(src.current))
+		complete := src.transition.Draw(buffer, src.transitionFrame)
 		if complete {
 			src.transition = nil
 		}
-		return frame
+		return buffer
 	}
 	return src.current
 }

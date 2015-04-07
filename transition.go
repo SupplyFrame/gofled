@@ -17,7 +17,7 @@ import (
 
 type TransitionInterface interface {
 	Start(transition *Transition)
-	Draw(oldSrc []byte, newSrc []byte, elapsed time.Duration) []byte
+	Draw(dst []byte, oldSrc []byte, newSrc []byte, elapsed time.Duration) []byte
 	Duration() time.Duration
 }
 
@@ -35,26 +35,22 @@ func (self *Transition) Init(blender *Blender, newSrc *FrameSource, worker Trans
 
 	self.Worker.Start(self)
 }
-func (self *Transition) Draw(src []byte) ([]byte, bool) {
+func (self *Transition) Draw(dst []byte, src []byte) (bool) {
 	elapsed := time.Since(self.StartTime)
-	newData := self.Worker.Draw(src, self.NewSrc.current, elapsed)
+	self.Worker.Draw(dst, src, self.NewSrc.current, elapsed)
 
 	complete := false
 	if elapsed >= self.Worker.Duration() {
 		complete = true
 	}
-	return newData, complete
+	return complete
 }
 
-func (self *Transition) Render() []byte {
-	if self.BlenderPtr == nil {
-		return self.NewSrc.current
-	}
-
-	newData, complete := self.Draw(self.BlenderPtr.primaryActive.current)
+func (self *Transition) Render(buffer []byte) {
+	complete := self.Draw(buffer, self.BlenderPtr.primaryActive.current)
 
 	// render other layers on top
-	self.BlenderPtr.DrawActiveLayers(newData)
+	self.BlenderPtr.DrawActiveLayers(buffer)
 
 	if complete {
 		// remove ourself from the blender
@@ -63,7 +59,6 @@ func (self *Transition) Render() []byte {
 		self.BlenderPtr = nil
 		self.Worker = nil
 	}
-	return newData
 }
 
 type CrossFadeTransition struct {	
@@ -75,10 +70,9 @@ func (self *CrossFadeTransition) Duration() time.Duration {
 func (self *CrossFadeTransition) Start(_ *Transition) {
 	log.Println("CrossFadeTransition:Start")
 }
-func (self *CrossFadeTransition) Draw(oldSrc []byte, newSrc []byte, elapsed time.Duration) []byte {
+func (self *CrossFadeTransition) Draw(data []byte, oldSrc []byte, newSrc []byte, elapsed time.Duration) []byte {
 	// blend between old src and new src based on elapsed time
 	// return a byte array resulting from the blend
-	data := make([]byte, len(oldSrc))
 
 	percent := elapsed.Seconds() / self.Duration().Seconds()
 	// blend over the new source based on percentage elapsed
@@ -122,10 +116,9 @@ func (self *WipeTransition) Start(t *Transition) {
 
 	go tween(easeInOutQuad, 10*time.Millisecond, self.Duration(), startPos, endPos, &self.percent)
 }
-func (self *WipeTransition) Draw(oldSrc []byte, newSrc []byte, elapsed time.Duration) []byte {
+func (self *WipeTransition) Draw(data []byte, oldSrc []byte, newSrc []byte, elapsed time.Duration) []byte {
 	// blend between old src and new src based on elapsed time
 	// return a byte array resulting from the blend
-	data := make([]byte, len(oldSrc))
 
 	// blend over the new source based on percentage elapsed
 	for i := 0; i < len(data); i++ {
