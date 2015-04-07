@@ -237,116 +237,92 @@ func sourceHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type connection struct {
+	ws *websocket.Conn
+	send chan *Message
+	broker *Broker
+}
 
-// implements a websocket source, so that browser apps can send data to the system as any other source
-func clientHandler(w http.ResponseWriter, r *http.Request) {
-	c, ok := w.(http.CloseNotifier)
-	if !ok {
-		http.Error(w, "Close notification unsupported!\n", http.StatusInternalServerError)
-		return
+func (c *connection) reader() {
+	for {
+		messageType, r, err := c.ws.NextReader()
+		if err != nil {
+			fmt.Println("Error from NextReader :", err.Error())
+			break
+		}
+
+		if messageType== websocket.CloseMessage {
+			fmt.Println("Close Message")
+			break
+		}
+		if messageType != websocket.TextMessage {
+			// skip all other message types except TextMessage
+			continue
+		}
+		
+		var message map[string] interface{}
+
+		dec := json.NewDecoder(r)
+		err = dec.Decode(&message)
+		if err != nil {
+			fmt.Println("Failed to unmarshal message content : ", err.Error())
+			continue
+		}
+		if message["Type"] == "settings" {
+			// cast data to map
+			settings := message["Data"].(map[string] interface{})
+			// settings received!
+			if val, ok := settings["brightness"]; ok {
+				brightness := val.(float64)
+				blender.brightness = brightness
+			}
+		}
 	}
+	c.ws.Close()
+}
 
+func (c *connection) writer() {
+	for m := range c.send {
+		
+		// send a message indicating what source the next message goes to
+		b, err := json.Marshal(m)
+		if err != nil {
+			fmt.Println("Failed to encode json : ", err.Error())
+			break
+		}
+		err = c.ws.WriteMessage(websocket.TextMessage, b)
+		if err != nil {
+			fmt.Println("Error sending message : ", err.Error())
+			break
+		}	
+
+		if m.Type == "data" {
+			err = c.ws.WriteMessage(websocket.BinaryMessage, m.Body)
+			if err != nil {
+				fmt.Println("Error sending message : ", err.Error())
+				break
+			}	
+		}
+	}
+	c.ws.Close()
+}
+type wsHandler struct {
+	broker *Broker
+}
+func (wsh wsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		if _, ok := err.(websocket.HandshakeError); ok {
-			fmt.Println("Websocket handshake error: %s\n", err)
-			return
-		}
-		fmt.Println("Websocket upgrade failed: %s\n", err)
+		fmt.Println("Error upgrading websocket : ", err.Error())
+		return
 	}
-	defer ws.Close()
-
-	// tell the broker about this client
-	in := make(chan *Message)
-	b.joining <- in
+	c := &connection{send: make(chan *Message), ws:ws, broker:wsh.broker}
+	c.broker.joining <- c.send
 	defer func() {
-		b.leaving <- in
+		c.broker.leaving <- c.send
 	}()
 
-	closer := c.CloseNotify()
-	websocketCloser := make(chan int,1)
-
-	fmt.Println("Client handler connected")
-
-	// setup reader to clear out ping messages
-	go func(c *websocket.Conn) {
-		for {
-			messageType, r, err := c.NextReader()
-
-			if err != nil {
-				fmt.Println("Error from NextReader :", err.Error())
-				close(websocketCloser)
-				return
-			}
-
-			if messageType== websocket.CloseMessage {
-				fmt.Println("Close Message")
-				close(websocketCloser)
-				return
-			}
-			if messageType != websocket.TextMessage {
-				// skip all other message types except TextMessage
-				continue
-			}
-			
-			var message map[string] interface{}
-
-			dec := json.NewDecoder(r)
-			err = dec.Decode(&message)
-			if err != nil {
-				fmt.Println("Failed to unmarshal message content : ", err.Error())
-				continue
-			}
-			if message["Type"] == "settings" {
-				// cast data to map
-				settings := message["Data"].(map[string] interface{})
-				// settings received!
-				if val, ok := settings["brightness"]; ok {
-					brightness := val.(float64)
-					blender.brightness = brightness
-				}
-			}
-		}
-	}(ws)
-
-	go func() {
-		time.Sleep(50*time.Millisecond) // wait a little to make sure this client is ready to receive
-		blender.RefreshSources(in) // then send a list of all the current sources so the client is up to date
-		// now send settings values
-		blender.RefreshSettings(in)
-	}()
-
-	for {
-		select {
-			case m := <- in:
-				
-				// send a message indicating what source the next message goes to
-				b, err := json.Marshal(m)
-				if err != nil {
-					fmt.Println("Failed to encode json : ", err.Error())
-					return
-				}
-				err = ws.WriteMessage(websocket.TextMessage, b)
-				if err != nil {
-					fmt.Println("Error sending message : ", err.Error())
-					return
-				}	
-
-				if m.Type == "data" {
-					err = ws.WriteMessage(websocket.BinaryMessage, m.Body)
-					if err != nil {
-						fmt.Println("Error sending message : ", err.Error())
-						//return
-					}	
-				}
-			case <-closer:
-				fmt.Println("Closing connection")
-				return
-			case <- websocketCloser:
-				fmt.Println("Closing websocket")
-				return
-		}
-	}
+	go c.writer()
+	c.reader()
 }
 
 func sender() {
@@ -436,7 +412,7 @@ func main() {
 	r.HandleFunc("/sources", sourcesHandler)
 	r.HandleFunc("/source", sourceHandler)
 	r.HandleFunc("/settings", settingsHandler)
-	r.HandleFunc("/client", clientHandler)
+	r.Handle("/client", wsHandler{broker: b})
 	r.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("./public/"))))
 	r.HandleFunc("/", indexHandler)
 
