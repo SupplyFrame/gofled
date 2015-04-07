@@ -50,10 +50,16 @@ func Renderer(numLEDs int, blender *Blender) {
 					ledPos = i
 					dataPos = (y*ledWidth + (ledWidth-1) - x) * 3
 				}
+				brightness := blender.brightness
+				
+				// scale brightness to our preferred range
+				// 0.20 is lowest, 0.75 is highest
+				brightness = 0.2 + brightness*0.55
+
 				m.SetPixelColor(ledPos,
-					byte(float64(buffer[dataPos])*blender.brightness),
-					byte(float64(buffer[dataPos+1])*blender.brightness), 
-					byte(float64(buffer[dataPos+2])*blender.brightness))
+					byte(float64(buffer[dataPos])*brightness),
+					byte(float64(buffer[dataPos+1])*brightness), 
+					byte(float64(buffer[dataPos+2])*brightness))
 			}
 		}
 		

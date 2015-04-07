@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/gorilla/websocket"
 	"fmt"
+	"math"
 	"encoding/json"
 	"net/http"
 )
@@ -43,6 +44,10 @@ func (c *ClientWebsocket) reader() {
 			// settings received!
 			if val, ok := settings["brightness"]; ok {
 				brightness := val.(float64)
+				
+				brightness = math.Max(0.0, brightness)
+				brightness = math.Min(1.0, brightness)
+
 				blender.brightness = brightness
 			}
 		}
