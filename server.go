@@ -249,6 +249,7 @@ func clientHandler(w http.ResponseWriter, r *http.Request) {
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		if _, ok := err.(websocket.HandshakeError); ok {
+			fmt.Println("Websocket handshake error: %s\n", err)
 			return
 		}
 		fmt.Println("Websocket upgrade failed: %s\n", err)
@@ -270,16 +271,28 @@ func clientHandler(w http.ResponseWriter, r *http.Request) {
 	// setup reader to clear out ping messages
 	go func(c *websocket.Conn) {
 		for {
-			messageType, p, err := c.ReadMessage()
+			messageType, r, err := c.NextReader()
+
 			if err != nil {
-				fmt.Println("Error from readMessage :", err.Error())
+				fmt.Println("Error from NextReader :", err.Error())
 				close(websocketCloser)
-				return // socket gone wrong!
+				return
+			}
+
+			if messageType== websocket.CloseMessage {
+				fmt.Println("Close Message")
+				close(websocketCloser)
+				return
+			}
+			if messageType != websocket.TextMessage {
+				// skip all other message types except TextMessage
+				continue
 			}
 			
 			var message map[string] interface{}
 
-			err = json.Unmarshal(p, &message)
+			dec := json.NewDecoder(r)
+			err = dec.Decode(&message)
 			if err != nil {
 				fmt.Println("Failed to unmarshal message content : ", err.Error())
 				continue
