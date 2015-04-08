@@ -263,7 +263,7 @@ func NewBlender(numLEDs int, broker *Broker) *Blender {
 		data1: make([]byte, numLEDs*3),
 		data2: make([]byte, numLEDs*3),
 		framenum: 0,
-		brightness: 0.5,
+		brightness: 1.0,
 		commands: make(chan BlenderCommand, 60), // buffered channel
 	}
 	return v;
