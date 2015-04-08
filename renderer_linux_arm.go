@@ -54,7 +54,7 @@ func Renderer(numLEDs int, blender *Blender) {
 				
 				// scale brightness to our preferred range
 				// 0.20 is lowest, 0.75 is highest
-				brightness = 0.2 + brightness*0.55
+				//brightness = 0.2 + brightness*0.55
 
 				m.SetPixelColor(ledPos,
 					byte(float64(buffer[dataPos])*brightness),
