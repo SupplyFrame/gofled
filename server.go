@@ -104,6 +104,7 @@ func tcpHandler(conn net.Conn) {
 					lenBuff = make([]byte, 0, 4)
 					// setup data buffer with appropriate capacity
 					dataBuff = make([]byte, 0, packetLen)
+
 					// change state
 					state = TCP_READ_DATA
 				}
@@ -123,16 +124,18 @@ func tcpHandler(conn net.Conn) {
 
 				// is the buffer full?
 				if len(dataBuff) == cap(dataBuff) {
-					// all data received
-					//fmt.Println("Received all data :", dataBuff)
-					state = TCP_READ_LEN
+					if len(dataBuff) > 8 {
+						// all data received
+						//fmt.Println("Received all data :", dataBuff)
+						state = TCP_READ_LEN
 
-					// parse out the command bytes
-					cmdBytes := dataBuff[:4]
-					cmd := binary.LittleEndian.Uint32(cmdBytes)
-					
-					// send the command byte and the data slice into the parser
-					src.ParseCommand(Command(cmd), dataBuff[4:])
+						// parse out the command bytes
+						cmdBytes := dataBuff[:4]
+						cmd := binary.LittleEndian.Uint32(cmdBytes)
+						
+						// send the command byte and the data slice into the parser
+						src.ParseCommand(Command(cmd), dataBuff[4:])
+					}
 
 					// frame received...how many milliseconds have elapsed?
 					elapsed := time.Since(start)
