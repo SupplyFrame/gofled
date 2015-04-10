@@ -59,7 +59,7 @@
 				for (var x=0; x < this.pixelWidth; x++) {
 					pixel = this.pixels[y][x];
 					pixel.position.x = pixelXOffset + (pixelSpacing * x);
-					pixel.position.y = renderHeight - pixelYOffset - (pixelSpacing * y);
+					pixel.position.y = pixelYOffset + (pixelSpacing * y);
 				}
 			}
 
